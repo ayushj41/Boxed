@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true); // State to track loading status
   const [error, setError] = useState(null); // State to handle errors
   const nav = useNavigate();
+
   // Fetch logs and boxes from the backend
   useEffect(() => {
     if (!username) return; // Prevent API call if username is not available
@@ -40,18 +41,21 @@ const Dashboard = () => {
           <h1 className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
             Home
           </h1>
-          <button className="p-2 hover:text-emerald-600 transition-colors" onClick={() =>{ 
-            localStorage.removeItem('username')
-            setUsername(null)
-            window.location.href = "/auth";
-          }
-            }>
+          <button
+            className="p-2 hover:text-emerald-600 transition-colors"
+            onClick={() => {
+              localStorage.removeItem('username');
+              setUsername(null);
+              window.location.href = "/auth";
+            }}
+          >
             <LogOut className="w-6 h-6" />
           </button>
         </div>
       </header>
 
       <main className="pt-20 px-4 max-w-2xl mx-auto">
+        {/* Your Boxes Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-medium text-gray-900">Your Boxes</h2>
@@ -68,7 +72,19 @@ const Dashboard = () => {
           <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
             <div className="flex gap-4 min-w-max">
               {loading ? (
-                <p className="text-gray-600">Loading boxes...</p>
+                // Loading Skeleton for Boxes
+                [...Array(3)].map((_, index) => (
+                  <div
+                    key={index}
+                    className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 w-72 animate-pulse"
+                  >
+                    <div className="aspect-video bg-gray-200"></div>
+                    <div className="p-4">
+                      <div className="h-5 w-3/4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-4 w-full bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))
               ) : error ? (
                 <p className="text-red-600">{error}</p>
               ) : boxes.length === 0 ? (
@@ -76,8 +92,8 @@ const Dashboard = () => {
               ) : (
                 boxes.map((box) => (
                   <Link
-                    key={box._id} // Use box._id from MongoDB
-                    to={`/${username}/community/${box._id}`} // Use username from localStorage
+                    key={box._id}
+                    to={`/${username}/community/${box._id}`}
                     className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-all w-72"
                   >
                     <div className="aspect-video relative">
@@ -104,6 +120,7 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Logs Section */}
         <div>
           <div className="space-y-2 mb-6">
             <h2 className="text-lg font-medium text-gray-900">Logs</h2>
@@ -111,26 +128,35 @@ const Dashboard = () => {
           </div>
 
           {loading ? (
-            <p className="text-gray-600">Loading logs...</p>
+            // Loading Skeleton for Logs
+            <div className="space-y-4">
+              {[...Array(3)].map((_, index) => (
+                <div
+                  key={index}
+                  className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 animate-pulse"
+                >
+                  <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+                  <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <p className="text-red-600">{error}</p>
+          ) : logs.length === 0 ? (
+            <p className="text-gray-600">No logs available.</p>
           ) : (
             <div className="space-y-4">
-              {logs.length === 0 ? (
-                <p className="text-gray-600">No logs available.</p>
-              ) : (
-                logs.map((log) => (
-                  <div
-                    key={log._id} // Use log._id from MongoDB
-                    className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200"
-                  >
-                    <span className="text-gray-900">{log.message}</span>
-                    <span className="text-sm text-gray-500">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))
-              )}
+              {logs.map((log) => (
+                <div
+                  key={log._id}
+                  className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200"
+                >
+                  <span className="text-gray-900">{log.message}</span>
+                  <span className="text-sm text-gray-500">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
