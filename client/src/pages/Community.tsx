@@ -67,9 +67,6 @@ const Community = () => {
     return <div>Loading...</div>;
   }
 
-  if (!community) {
-    return <div>Community not found</div>;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
