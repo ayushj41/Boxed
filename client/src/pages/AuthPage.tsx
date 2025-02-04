@@ -13,7 +13,7 @@ const AuthPage = ({ setUsername }) => {
     if (!input.trim()) return;
 
     try {
-      const { data } = await axios.post("http://localhost:3000/auth", {
+      const { data } = await axios.post("https://boxed-api.vercel.app/auth", {
         userName: input.trim(),
         action: isLogin ? "login" : "register",
       });

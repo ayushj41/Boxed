@@ -13,7 +13,7 @@ const Community = () => {
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/boxes/${id}`);
+        const response = await axios.get(`https://boxed-api.vercel.app//boxes/${id}`);
         setCommunity(response.data.box);
         setLoading(false);
       } catch (error) {
@@ -39,7 +39,7 @@ const Community = () => {
         postBox: id, // The box ID
       };
 
-      const response = await axios.post('http://localhost:3000/post', postData);
+      const response = await axios.post('https://boxed-api.vercel.app/post', postData);
       const createdPost = response.data.post;
 
       // Update the community state to include the new post

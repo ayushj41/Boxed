@@ -15,7 +15,7 @@ const Home = () => {
     }
     
     try {
-      const response = await axios.post('http://localhost:3000/addlogs', {
+      const response = await axios.post('https://boxed-api.vercel.app/addlogs', {
         userName,
         message: input,
       });
