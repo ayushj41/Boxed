@@ -3,14 +3,21 @@ import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
+import { Configuration, OpenAIApi } from "openai";
+import cron from "node-cron";
+import natural from "natural";
 
 dotenv.config();
 const app = express();
 const PORT = 3000;
+const tokenizer = new natural.WordTokenizer();
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+// OpenAI Configuration
+const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -138,7 +145,31 @@ app.post("/addlogs", async (req, res) => {
 
     user.logs.push(newLog);
     await user.save();
-
+    const keywords = tokenizer.tokenize(message).slice(0, 3).join(" ");
+  const recentLogs = await Log.find({
+    message: { $regex: keywords, $options: "i" },
+    timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+  });
+  
+  const userCount = new Set(recentLogs.map(log => log.userName)).size;
+  if (userCount >= 3) {
+    let box = await Box.findOne({ boxName: keywords });
+    if (!box) {
+      box = new Box({ boxName: keywords, boxImage: "default.png" });
+      await box.save();
+    }
+    if (!box.boxMembers.includes(user._id)) {
+      box.boxMembers.push(user._id);
+      box.updatedAt = new Date();
+      await box.save();
+    }
+    if (!box.boxMembers.includes(user._id)) {
+      box.boxMembers.push(user._id);
+      box.updatedAt = new Date();
+      await box.save();
+    }
+    return res.status(201).json({ message: "Box created/joined", box });
+    }
     res.status(201).json({ message: "Log stored successfully", log: newLog });
   } catch (error) {
     res
@@ -166,6 +197,18 @@ app.get("/getlogs/:userName", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching logs", error: error.message });
+  }
+});
+// OpenAI API Integration
+app.post("/generate-response", async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ message: "Prompt is required" });
+  
+  try {
+    const response = await openai.createCompletion({ model: "gpt-3.5-turbo", prompt, max_tokens: 100, temperature: 0.7 });
+    res.status(200).json({ response: response.data.choices[0].text });
+  } catch (error) {
+    res.status(500).json({ message: "OpenAI API error", error: error.message });
   }
 });
 
