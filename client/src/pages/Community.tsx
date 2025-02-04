@@ -64,9 +64,58 @@ const Community = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
-  }
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+        <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-10">
+          <div className="flex items-center justify-between px-4 h-16 max-w-2xl mx-auto">
+            <div className="h-5 w-5 bg-gray-200 rounded-full animate-pulse"></div>
+            <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-5 w-5 bg-gray-200 rounded-full animate-pulse"></div>
+          </div>
+        </header>
 
+        <main className="pt-16 pb-20 max-w-2xl mx-auto">
+          <div className="px-4">
+            <div className="flex justify-center py-8">
+              <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse"></div>
+            </div>
+
+            <div className="text-center space-y-3 mb-8">
+              <div className="h-8 w-48 bg-gray-200 rounded mx-auto animate-pulse"></div>
+              <div className="h-4 w-64 bg-gray-200 rounded mx-auto animate-pulse"></div>
+              <div className="h-4 w-56 bg-gray-200 rounded mx-auto animate-pulse"></div>
+            </div>
+
+            <div className="flex items-center gap-3 mb-8">
+              <div className="flex-1 relative">
+                <div className="w-full h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100">
+            <div className="px-4 py-4">
+              <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+
+            <div className="space-y-6">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="px-4">
+                  <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+                    <div className="aspect-video bg-gray-200 animate-pulse"></div>
+                    <div className="p-4">
+                      <div className="h-4 w-full bg-gray-200 rounded mb-3 animate-pulse"></div>
+                      <div className="h-4 w-48 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
