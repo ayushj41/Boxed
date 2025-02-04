@@ -13,7 +13,7 @@ const Community = () => {
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
-        const response = await axios.get(`https://boxed-api.vercel.app//boxes/${id}`);
+        const response = await axios.get(`https://boxed-api.vercel.app/boxes/${id}`);
         setCommunity(response.data.box);
         setLoading(false);
       } catch (error) {
