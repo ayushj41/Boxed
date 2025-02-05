@@ -46,7 +46,7 @@ const Home = () => {
       <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="flex items-center justify-center px-4 h-full max-w-2xl mx-auto">
           <h1 className="text-xl font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-            BOXED
+            THE BOX
           </h1>
         </div>
       </header>
