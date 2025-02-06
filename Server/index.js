@@ -3,14 +3,26 @@ import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
+import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 dotenv.config();
 const app = express();
 const PORT = 3000;
 
+const endpoint =
+  process.env.ENV === "dev"
+    ? process.env.DEV_FRONTEND_URL
+    : process.env.PROD_FRONTEND_URL;
+
 // Middleware
-app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(
+  cors({
+    origin: endpoint,
+    credentials: true,
+  })
+);
 
 // Connect to MongoDB
 mongoose
@@ -363,3 +375,5 @@ app.use("/ai", AiRouter);
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+export default app;
