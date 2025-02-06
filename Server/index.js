@@ -55,6 +55,7 @@ const boxSchema = new mongoose.Schema({
     default:
       "https://plus.unsplash.com/premium_vector-1727309324616-78d628deaab3?q=80&w=2766",
   },
+  boxDescription: { type: String, default: "" },
   boxVisits: { type: Number, default: 0 },
   boxMembers: [
     { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
@@ -138,6 +139,20 @@ app.post("/addlogs", async (req, res) => {
 
     user.logs.push(newLog);
     await user.save();
+
+    console.log("Running AI job in the background");
+
+    // Run the cron job in the background without blocking response
+    setTimeout(async () => {
+      try {
+        await cron_job_ai({
+          userName,
+          message,
+        });
+      } catch (err) {
+        console.error("Background AI job failed:", err);
+      }
+    }, 0);
 
     res.status(201).json({ message: "Log stored successfully", log: newLog });
   } catch (error) {

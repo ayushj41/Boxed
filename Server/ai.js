@@ -14,13 +14,15 @@ Return only a JSON object with the following structure:
 
 {
   "boxName": "string",
+  "boxDescription": "string",
   "isExistingCommunity": "boolean"
 }
 
 Rules:
 1. "boxName" should be either an existing community name or a new suggested one.
-2. "isExistingCommunity" should be true if the community exists in the provided list, otherwise false.
-3. Do not include any extra text, only return valid JSON.
+2. "boxDescription" should be a brief description of the community.
+3. "isExistingCommunity" should be true if the community exists in the provided list, otherwise false.
+4. Do not include any extra text, only return valid JSON.
 
 Details: 
 Given a user log detailing an individual's interactions, preferences, and thoughts, along with a list of existing communities, analyze the user's characteristics and determine the most suitable community for them. If the user aligns with an existing community, assign them to it. If no suitable community exists.`;
@@ -52,12 +54,7 @@ AiRouter.post("/chat", async (req, res) => {
   }
 });
 
-const demo_obj = {
-  userName: "user3",
-  message: "counter strike tournaments are now replaced by valorant",
-};
-
-export async function cron_job_ai() {
+export async function cron_job_ai(demo_obj) {
   try {
     const all_boxes = await getAllBoxes(); // Returns array of box names
     console.log(all_boxes);
@@ -96,8 +93,7 @@ export async function cron_job_ai() {
       await add_to_existing_box(res.boxName, demo_obj.userName);
     } else {
       console.log("User belongs to new community: ", res.boxName);
-      const newBox = await create_new_box(res.boxName, demo_obj.userName);
-      await create_new_box(newBox._id, demo_obj.userName);
+      await create_new_box(res.boxName, demo_obj.userName); // Only one call needed
     }
   } catch (error) {
     console.error(

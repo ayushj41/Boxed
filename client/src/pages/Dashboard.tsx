@@ -11,6 +11,8 @@ const Dashboard = () => {
   const [error, setError] = useState(null); // State to handle errors
   const nav = useNavigate();
 
+  const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
+
   // Fetch logs and boxes from the backend
   useEffect(() => {
     if (!username) return; // Prevent API call if username is not available
@@ -18,11 +20,11 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // Fetch logs
-        const logsResponse = await axios.get(`https://boxed-api.vercel.app/getlogs/${username}`);
+        const logsResponse = await axios.get(`${endpoint}/getlogs/${username}`);
         setLogs(logsResponse.data.logs.slice().reverse()); // Reverse logs safely
 
         // Fetch boxes
-        const boxesResponse = await axios.get(`https://boxed-api.vercel.app/userboxes/${username}`);
+        const boxesResponse = await axios.get(`${endpoint}/userboxes/${username}`);
         setBoxes(boxesResponse.data.boxes);
       } catch (error) {
         setError(error.response?.data?.message || 'Failed to fetch data'); // Handle errors

@@ -5,7 +5,7 @@ import axios from 'axios';
 const Home = () => {
   const [input, setInput] = useState('');
   const [userName, setUserName] = useState(localStorage.getItem('username'));
-
+  const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -15,7 +15,7 @@ const Home = () => {
     }
     
     try {
-      const response = await axios.post('https://boxed-api.vercel.app/addlogs', {
+      const response = await axios.post(`${endpoint}/addlogs`, {
         userName,
         message: input,
       });
