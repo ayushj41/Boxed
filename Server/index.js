@@ -11,11 +11,7 @@ const PORT = 3000;
 // Middleware
 app.use(bodyParser.json());
 
-app.use(
-  cors({
-    origin: "*",
-  })
-);
+app.use(cors());
 
 // Connect to MongoDB
 mongoose
