@@ -8,12 +8,14 @@ const AuthPage = ({ setUsername }) => {
   const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
+  const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     try {
-      const { data } = await axios.post("https://boxed-api.vercel.app/auth", {
+      const { data } = await axios.post(`${endpoint}/auth`, {
         userName: input.trim(),
         action: isLogin ? "login" : "register",
       });

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
-
+import { AiRouter, cron_job_ai } from "./ai.js";
 dotenv.config();
 const app = express();
 const PORT = 3000;
@@ -11,12 +11,6 @@ const PORT = 3000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
 
 // Connect to MongoDB
 mongoose
@@ -40,7 +34,7 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
-const User = mongoose.model("User", userSchema);
+export const User = mongoose.model("User", userSchema);
 
 // Define Log Schema
 const logSchema = new mongoose.Schema({
@@ -48,13 +42,20 @@ const logSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-const Log = mongoose.model("Log", logSchema);
+export const Log = mongoose.model("Log", logSchema);
 
 //Define box schema
 
 const boxSchema = new mongoose.Schema({
+  isActive: { type: Boolean, default: false },
   boxName: { type: String, required: true },
-  boxImage: { type: String, required: true },
+  boxImage: {
+    type: String,
+    required: true,
+    default:
+      "https://plus.unsplash.com/premium_vector-1727309324616-78d628deaab3?q=80&w=2766",
+  },
+  boxDescription: { type: String, default: "" },
   boxVisits: { type: Number, default: 0 },
   boxMembers: [
     { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
@@ -66,7 +67,7 @@ const boxSchema = new mongoose.Schema({
   boxPostsCount: { type: Number, default: 0 },
 });
 
-const Box = mongoose.model("Box", boxSchema);
+export const Box = mongoose.model("Box", boxSchema);
 
 //Define post schema
 
@@ -139,6 +140,20 @@ app.post("/addlogs", async (req, res) => {
     user.logs.push(newLog);
     await user.save();
 
+    console.log("Running AI job in the background");
+
+    // Run the cron job in the background without blocking response
+    setTimeout(async () => {
+      try {
+        await cron_job_ai({
+          userName,
+          message,
+        });
+      } catch (err) {
+        console.error("Background AI job failed:", err);
+      }
+    }, 0);
+
     res.status(201).json({ message: "Log stored successfully", log: newLog });
   } catch (error) {
     res
@@ -200,15 +215,14 @@ app.post("/post", async (req, res) => {
         .json({ message: "Post content, author, and box are required" });
     }
 
-    const { _id } = await User.findOne({
-      userName: postAuthor,
-    });
-    if (!_id) {
+    const user = await User.findOne({ userName: postAuthor });
+
+    if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
     console.log(_id);
 
-    const newPost = new Post({ postContent, postAuthor: _id, postBox });
+    const newPost = new Post({ postContent, postAuthor: user._id, postBox });
     await newPost.save();
 
     await Box.findByIdAndUpdate(postBox, {
@@ -290,6 +304,22 @@ app.post("/bulk/users", async (req, res) => {
   }
 });
 
+// Endpoint to get boxes of a user
+app.get("/userboxes/:userName", async (req, res) => {
+  try {
+    const { userName } = req.params;
+    const user = await User.findOne({ userName }).populate("boxes");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ boxes: user.boxes });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching user boxes", error: error.message });
+  }
+});
+
 // Endpoint to get all boxes
 app.get("/boxes", async (req, res) => {
   try {
@@ -318,6 +348,17 @@ app.get("/boxes/:id", async (req, res) => {
   }
 });
 
+export async function getAllBoxes() {
+  //get all box names
+  const boxes = await Box.find({});
+  const names_of_boxes = boxes.map((box) => box.boxName);
+  console.log(names_of_boxes);
+  return names_of_boxes;
+}
+
+app.use("/ai", AiRouter);
+
+// cron_job_ai();
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

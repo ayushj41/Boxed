@@ -9,11 +9,13 @@ const Community = () => {
   const [community, setCommunity] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
+
   // Fetch community data
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
-        const response = await axios.get(`https://boxed-api.vercel.app/boxes/${id}`);
+        const response = await axios.get(`${endpoint}/boxes/${id}`);
         setCommunity(response.data.box);
         setLoading(false);
       } catch (error) {
@@ -39,7 +41,7 @@ const Community = () => {
         postBox: id, // The box ID
       };
 
-      const response = await axios.post('https://boxed-api.vercel.app/post', postData);
+      const response = await axios.post(`${endpoint}/post`, postData);
       const createdPost = response.data.post;
 
       // Update the community state to include the new post
