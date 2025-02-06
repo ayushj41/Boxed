@@ -22,7 +22,7 @@ const Dashboard = () => {
         setLogs(logsResponse.data.logs.slice().reverse()); // Reverse logs safely
 
         // Fetch boxes
-        const boxesResponse = await axios.get('https://boxed-api.vercel.app/boxes');
+        const boxesResponse = await axios.get(`https://boxed-api.vercel.app/userboxes/${username}`);
         setBoxes(boxesResponse.data.boxes);
       } catch (error) {
         setError(error.response?.data?.message || 'Failed to fetch data'); // Handle errors
