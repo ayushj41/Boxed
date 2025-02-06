@@ -3,15 +3,26 @@ import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
+import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Middleware
-app.use(bodyParser.json());
+const endpoint =
+  process.env.ENV === "dev"
+    ? process.env.DEV_FRONTEND_URL
+    : process.env.PROD_FRONTEND_URL;
 
-app.use(cors());
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(
+  cors({
+    origin: endpoint,
+    credentials: true,
+  })
+);
 
 // Connect to MongoDB
 mongoose
