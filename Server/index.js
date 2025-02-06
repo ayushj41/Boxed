@@ -11,8 +11,7 @@ const PORT = 3000;
 // Middleware
 app.use(
   cors({
-    origin: [process.env.DEV_FRONTEND_URL, process.env.PROD_FRONTEND_URL],
-    Credentials: true,
+    origin: "*",
   })
 );
 app.use(bodyParser.json());
