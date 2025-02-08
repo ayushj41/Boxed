@@ -377,6 +377,36 @@ app.get("/getposts/:userName", async (req, res) => {
   }
 });
 
+app.get("/random-box/:userName", async (req, res) => {
+  try {
+    const { userName } = req.params;
+    const user = await User.findOne({ userName }).populate("boxes");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const userBoxIds = user.boxes.map((box) => box._id);
+    const randomBox = await Box.findOne({ _id: { $nin: userBoxIds } })
+      .skip(
+        Math.floor(
+          Math.random() *
+            (await Box.countDocuments({ _id: { $nin: userBoxIds } }))
+        )
+      )
+      .populate("boxPosts");
+
+    if (!randomBox) {
+      return res.status(404).json({ message: "No available boxes found" });
+    }
+
+    res.status(200).json({ box: randomBox });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching random box", error: error.message });
+  }
+});
+
 export async function getAllBoxes() {
   //get all box names
   const boxes = await Box.find({});
