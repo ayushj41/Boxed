@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, X } from "lucide-react";
+import { LogOut, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -7,6 +7,7 @@ const Home = () => {
   const [input, setInput] = useState("");
   const [userName, setUserName] = useState(localStorage.getItem("username"));
   const navigate = useNavigate();
+  const username = localStorage.getItem("username");
 
   const endpoint =
     import.meta.env.VITE_RUNNING_ENV === "dev"
@@ -37,20 +38,19 @@ const Home = () => {
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col bg-gradient-to-b from-white to-gray-50 relative">
-      {/* Close Button - Updated styling */}
-      <button
-        onClick={() => navigate(`${userName}/dashboard`)}
-        className="absolute z-50 top-3 right-6 p-2.5 bg-white hover:bg-emerald-50 rounded-xl shadow-md ring-1 ring-gray-200 hover:ring-emerald-500 transition-all duration-200 flex items-center justify-center group"
-      >
-        <X className="h-5 w-5 text-gray-500 group-hover:text-emerald-500 transition-colors" />
-      </button>
-
-      {/* Header */}
-      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="flex items-center justify-center px-4 h-full max-w-2xl mx-auto">
-          <h1 className="text-xl font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+      <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-10">
+        <div className="flex items-center justify-center px-4 h-16 max-w-2xl mx-auto">
+        <h1 className="text-xl flex-1 flex justify-center items-center font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
             THE BOX
           </h1>
+          <button
+            className="p-2 hover:text-emerald-600 transition-colors"
+            onClick={() => {
+              navigate(`/${username}/dashboard`);
+            }}
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
       </header>
 

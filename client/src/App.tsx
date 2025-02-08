@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Community from "./pages/Community";
 import AuthPage from "./pages/AuthPage";
 import Home from "./pages/Home";
+import Explore from "./pages/Explore";
 
 // Component for protected routes
 function ProtectedRoute({ children }) {
@@ -37,6 +38,7 @@ function App() {
 
           {/* Protected Routes with Username */}
           <Route path="/:username" element={<ProtectedRoute><UsernameWrapper Component={Home} /></ProtectedRoute>} />
+          <Route path="/:username/explore/" element={<ProtectedRoute><UsernameWrapper Component={Explore} /></ProtectedRoute>} />
           <Route path="/:username/dashboard" element={<ProtectedRoute><UsernameWrapper Component={Dashboard} /></ProtectedRoute>} />
           <Route path="/:username/community/:id" element={<ProtectedRoute><UsernameWrapper Component={Community} /></ProtectedRoute>} />
 
