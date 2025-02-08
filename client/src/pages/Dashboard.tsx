@@ -5,36 +5,39 @@ import axios from 'axios';
 
 const Dashboard = () => {
   const [username, setUsername] = useState(localStorage.getItem("username"));
-  const [logs, setLogs] = useState([]); // State to store logs
-  const [boxes, setBoxes] = useState([]); // State to store boxes
-  const [loading, setLoading] = useState(true); // State to track loading status
-  const [error, setError] = useState(null); // State to handle errors
+  const [logs, setLogs] = useState([]);
+  const [boxes, setBoxes] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('logs'); // New state for tab management
   const nav = useNavigate();
 
   const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
 
-  // Fetch logs and boxes from the backend
   useEffect(() => {
-    if (!username) return; // Prevent API call if username is not available
+    if (!username) return;
 
     const fetchData = async () => {
       try {
-        // Fetch logs
-        const logsResponse = await axios.get(`${endpoint}/getlogs/${username}`);
-        setLogs(logsResponse.data.logs.slice().reverse()); // Reverse logs safely
+        const [logsResponse, postsResponse, boxesResponse] = await Promise.all([
+          axios.get(`${endpoint}/getlogs/${username}`),
+          axios.get(`${endpoint}/getposts/${username}`),
+          axios.get(`${endpoint}/userboxes/${username}`)
+        ]);
 
-        // Fetch boxes
-        const boxesResponse = await axios.get(`${endpoint}/userboxes/${username}`);
+        setLogs(logsResponse.data.logs.slice().reverse());
+        setPosts(postsResponse.data.posts);
         setBoxes(boxesResponse.data.boxes);
       } catch (error) {
-        setError(error.response?.data?.message || 'Failed to fetch data'); // Handle errors
+        setError(error.response?.data?.message || 'Failed to fetch data');
       } finally {
-        setLoading(false); // Set loading to false after the request completes
+        setLoading(false);
       }
     };
 
     fetchData();
-  }, [username]); // Re-fetch data if the username changes
+  }, [username]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 pb-20">
@@ -57,7 +60,7 @@ const Dashboard = () => {
       </header>
 
       <main className="pt-20 px-4 max-w-2xl mx-auto">
-        {/* Your Boxes Section */}
+        {/* Boxes Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-medium text-gray-900">Your Boxes</h2>
@@ -74,12 +77,8 @@ const Dashboard = () => {
           <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
             <div className="flex gap-4 min-w-max">
               {loading ? (
-                // Loading Skeleton for Boxes
                 [...Array(3)].map((_, index) => (
-                  <div
-                    key={index}
-                    className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 w-72 animate-pulse"
-                  >
+                  <div key={index} className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 w-72 animate-pulse">
                     <div className="aspect-video bg-gray-200"></div>
                     <div className="p-4">
                       <div className="h-5 w-3/4 bg-gray-200 rounded mb-2"></div>
@@ -87,81 +86,112 @@ const Dashboard = () => {
                     </div>
                   </div>
                 ))
-              ) : error ? (
-                <p className="text-red-600">{error}</p>
-              ) : boxes.length === 0 ? (
-                <p className="text-gray-600">No boxes available.</p>
-              ) : (
-                boxes.map((box) => (
-                  <Link
-                    key={box._id}
-                    to={`/${username}/community/${box._id}`}
-                    className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-all w-72"
-                  >
-                    <div className="aspect-video relative">
-                      <img
-                        src={box.boxImage}
-                        alt={box.boxName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-medium text-gray-900">{box.boxName}</h3>
-                      <p className="text-gray-500 text-xs mt-2 flex items-center gap-2">
-                        <span>{box.boxVisits} visits</span>
-                        <span>•</span>
-                        <span>{box.boxMembersCount} Members</span>
-                        <span>•</span>
-                        <span>{box.boxPostsCount} posts</span>
-                      </p>
-                    </div>
-                  </Link>
-                ))
-              )}
+              ) : boxes.map((box) => (
+                <Link
+                  key={box._id}
+                  to={`/${username}/community/${box._id}`}
+                  className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-all w-72"
+                >
+                  <div className="aspect-video relative">
+                    <img
+                      src={box.boxImage}
+                      alt={box.boxName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-medium text-gray-900">{box.boxName}</h3>
+                    <p className="text-gray-500 text-xs mt-2 flex items-center gap-2">
+                      <span>{box.boxVisits} visits</span>
+                      <span>•</span>
+                      <span>{box.boxMembersCount} Members</span>
+                      <span>•</span>
+                      <span>{box.boxPostsCount} posts</span>
+                    </p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Logs Section */}
-        <div>
-          <div className="space-y-2 mb-6">
+        {/* Tabs Section */}
+        <div className="mb-6">
+          {/* Heading */}
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900">Logs</h2>
-            <p className="text-sm text-emerald-600">Let us explore</p>
           </div>
+          <div className="flex gap-4 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`pb-2 px-1 text-sm font-medium transition-colors ${
+                activeTab === 'logs'
+                  ? 'text-emerald-600 border-b-2 border-emerald-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Thoughts
+            </button>
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`pb-2 px-1 text-sm font-medium transition-colors ${
+                activeTab === 'posts'
+                  ? 'text-emerald-600 border-b-2 border-emerald-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Posts
+            </button>
+          </div>
+        </div>
 
-          {loading ? (
-            // Loading Skeleton for Logs
-            <div className="space-y-4">
-              {[...Array(3)].map((_, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 animate-pulse"
-                >
+        {/* Content Section */}
+        {activeTab === 'logs' ? (
+          <div className="space-y-4">
+            {loading ? (
+              [...Array(3)].map((_, index) => (
+                <div key={index} className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 animate-pulse">
                   <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
                   <div className="h-4 w-16 bg-gray-200 rounded"></div>
                 </div>
-              ))}
-            </div>
-          ) : error ? (
-            <p className="text-red-600">{error}</p>
-          ) : logs.length === 0 ? (
-            <p className="text-gray-600">No logs available.</p>
-          ) : (
-            <div className="space-y-4">
-              {logs.map((log) => (
-                <div
-                  key={log._id}
-                  className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200"
-                >
-                  <span className="text-gray-900">{log.message}</span>
+              ))
+            ) : logs.map((log) => (
+              <div key={log._id} className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
+                <span className="text-gray-900">{log.message}</span>
+                <span className="text-sm text-gray-500">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {loading ? (
+              [...Array(3)].map((_, index) => (
+                <div key={index} className="animate-pulse p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
+                  <div className="h-5 w-1/3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 w-full bg-gray-200 rounded"></div>
+                </div>
+              ))
+            ) : posts.map((post) => (
+              
+              <div key={post._id} className="p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
+                <Link to={`/${username}/community/${post.postBox._id}`} key={post._id} >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-emerald-600">
+                    {post.postBox.boxName}
+                  </h3>
                   <span className="text-sm text-gray-500">
-                    {new Date(log.timestamp).toLocaleTimeString()}
+                    {new Date(post.timestamp).toLocaleString()}
                   </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <p className="text-gray-900">{post.postContent}</p>
+                </Link>
+              </div>
+            
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
