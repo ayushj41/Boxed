@@ -60,7 +60,7 @@ export async function cron_job_ai(demo_obj) {
     console.log(all_boxes);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-turbo",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system_propmt },
@@ -93,7 +93,7 @@ export async function cron_job_ai(demo_obj) {
       await add_to_existing_box(res.boxName, demo_obj.userName);
     } else {
       console.log("User belongs to new community: ", res.boxName);
-      await create_new_box(res.boxName, demo_obj.userName); // Only one call needed
+      await create_new_box(res.boxName, res.boxDescription, demo_obj.userName); // Only one call needed
     }
   } catch (error) {
     console.error(
@@ -124,9 +124,9 @@ export async function add_to_existing_box(boxName, userName) {
   }
 }
 
-export async function create_new_box(boxName, userName) {
+export async function create_new_box(boxName, boxDescription, userName) {
   console.log(`Creating new box ${boxName} and adding ${userName}`);
-  const newBox = new Box({ boxName });
+  const newBox = new Box({ boxName: boxName, boxDescription: boxDescription });
   await newBox.save();
 
   const usr = await User.findOne({ userName });

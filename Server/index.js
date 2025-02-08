@@ -164,7 +164,7 @@ app.post("/addlogs", async (req, res) => {
       } catch (err) {
         console.error("Background AI job failed:", err);
       }
-    }, 0);
+    }, 1);
 
     res.status(201).json({ message: "Log stored successfully", log: newLog });
   } catch (error) {
@@ -232,7 +232,7 @@ app.post("/post", async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
-    console.log(_id);
+    console.log(user._id);
 
     const newPost = new Post({ postContent, postAuthor: user._id, postBox });
     await newPost.save();
@@ -357,6 +357,23 @@ app.get("/boxes/:id", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching box", error: error.message });
+  }
+});
+
+// Endpoint to get all posts by a user
+app.get("/getposts/:userName", async (req, res) => {
+  try {
+    const { userName } = req.params;
+    const user = await User.findOne({ userName });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const posts = await Post.find({ postAuthor: user._id }).populate("postBox");
+    res.status(200).json({ posts });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching posts", error: error.message });
   }
 });
 
