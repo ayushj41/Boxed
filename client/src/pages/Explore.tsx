@@ -190,7 +190,7 @@ const Explore = () => {
         )}
 
         {/* Fixed Bottom Input */}
-        <div className="bg-white border-t border-gray-100 p-4 fixed bottom-12 left-0 right-0 max-w-2xl mx-auto">
+        <div className="bg-white border-t border-gray-100 p-4 fixed bottom-16 left-0 right-0 max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
               <textarea
