@@ -170,6 +170,13 @@ const Community = () => {
                 key={post._id}
                 className={`flex ${post.postAuthor === username ? 'justify-end' : 'justify-start'}`}
               >
+                <div className="w-10 h-10 rounded-full overflow-hidden">
+                  <img
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.postAuthor}`}
+                    alt={post.postAuthor}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div 
                   className={`inline-block max-w-[80%] ${
                     post.postAuthor === username 
@@ -201,7 +208,7 @@ const Community = () => {
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="fixed bottom-24 right-4 p-3 bg-emerald-500 text-white rounded-full shadow-lg hover:bg-emerald-600 transition-all z-50"
+            className="fixed bottom-36 right-4 p-3 bg-emerald-500 text-white rounded-full shadow-lg hover:bg-emerald-600 transition-all z-50"
             aria-label="Scroll to top"
           >
             <ArrowUp className="h-5 w-5" />

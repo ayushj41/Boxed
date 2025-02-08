@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Community from "./pages/Community";
 import AuthPage from "./pages/AuthPage";
+import Home from "./pages/Home";
 
 // Component for protected routes
 function ProtectedRoute({ children }) {
   const username = localStorage.getItem("username");
   return username ? children : <Navigate to="/auth" replace />;
+}
+
+function UsernameWrapper({ Component }) {
+  const { username } = useParams();
+  return <Component username={username} />;
 }
 
 function App() {
@@ -28,14 +33,14 @@ function App() {
       <div className="min-h-screen bg-white pb-16">
         <Routes>
           {/* Authentication Page */}
-          <Route path="/auth" element={username ? <Navigate to={`/${username}`} replace /> : <AuthPage setUsername={setUsername} />} />
+          <Route path="/auth" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />} />
 
-          {/* Protected Routes (Only accessible after login) */}
-          <Route path="/:username" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route path="/:username/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/:username/community/:id" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+          {/* Protected Routes with Username */}
+          <Route path="/:username" element={<ProtectedRoute><UsernameWrapper Component={Home} /></ProtectedRoute>} />
+          <Route path="/:username/dashboard" element={<ProtectedRoute><UsernameWrapper Component={Dashboard} /></ProtectedRoute>} />
+          <Route path="/:username/community/:id" element={<ProtectedRoute><UsernameWrapper Component={Community} /></ProtectedRoute>} />
 
-          {/* Fallback Route - Redirect to Auth or Home */}
+          {/* Fallback Route - Redirect to Username-Based Routes */}
           <Route path="*" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <Navigate to="/auth" replace />} />
         </Routes>
 

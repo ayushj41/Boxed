@@ -10,7 +10,7 @@ const Dashboard = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('logs'); // New state for tab management
+  const [activeTab, setActiveTab] = useState('logs');
   const nav = useNavigate();
 
   const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
@@ -60,18 +60,34 @@ const Dashboard = () => {
       </header>
 
       <main className="pt-20 px-4 max-w-2xl mx-auto">
+        {/* Input section */}
+      <div className="mb-8">
+          <Link to={`/${username}`} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+              <img
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`}
+                alt="User avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Share your thoughts..."
+                className="w-full px-4 py-2 bg-gray-50 rounded-lg text-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                readOnly
+                onClick={(e) => {
+                  e.preventDefault();
+                  nav(`/${username}`);
+                }}
+              />
+            </div>
+          </Link>
+        </div>
         {/* Boxes Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-medium text-gray-900">Your Boxes</h2>
-            <div className="flex gap-2">
-              <button className="p-1.5 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
 
           <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">

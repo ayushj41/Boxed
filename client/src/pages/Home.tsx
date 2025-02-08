@@ -1,46 +1,49 @@
-import { useState } from 'react';
-import { Send } from 'lucide-react';
-import axios from 'axios';
+import { useState } from "react";
+import { Send, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Home = () => {
-  const [input, setInput] = useState('');
-  const [userName, setUserName] = useState(localStorage.getItem('username'));
-  const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
+  const [input, setInput] = useState("");
+  const [userName, setUserName] = useState(localStorage.getItem("username"));
+  const navigate = useNavigate();
+
+  const endpoint =
+    import.meta.env.VITE_RUNNING_ENV === "dev"
+      ? import.meta.env.VITE_DEV_API_URL
+      : import.meta.env.VITE_PROD_API_URL;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!input.trim()) {
-      alert('Please enter a message.');
+      alert("Please enter a message.");
       return;
     }
-    
+
     try {
       const response = await axios.post(`${endpoint}/addlogs`, {
         userName,
         message: input,
       });
-      
-      console.log('Log stored successfully:', response.data);
-      setInput('');
+
+      console.log("Log stored successfully:", response.data);
+      setInput("");
+      navigate(`${userName}/dashboard`);
     } catch (error) {
-      console.error('Error storing log:', error.response?.data || error.message);
+      console.error("Error storing log:", error.response?.data || error.message);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-white to-gray-50">
-      {/* AI Background Pattern - Fixed position */}
-      <div className="fixed inset-0 opacity-5 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,128,128,0.1)_0%,rgba(0,128,128,0)_50%)]"></div>
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
+    <div className="min-h-[calc(100vh-64px)] flex flex-col bg-gradient-to-b from-white to-gray-50 relative">
+      {/* Close Button - Updated styling */}
+      <button
+        onClick={() => navigate(`${userName}/dashboard`)}
+        className="absolute z-50 top-3 right-6 p-2.5 bg-white hover:bg-emerald-50 rounded-xl shadow-md ring-1 ring-gray-200 hover:ring-emerald-500 transition-all duration-200 flex items-center justify-center group"
+      >
+        <X className="h-5 w-5 text-gray-500 group-hover:text-emerald-500 transition-colors" />
+      </button>
 
       {/* Header */}
       <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -52,7 +55,7 @@ const Home = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex flex-1 overflow-y-auto pb-20 justify-center items-center">
         <div className="h-full flex items-center justify-center px-4">
           <div className="w-full max-w-2xl text-center space-y-6">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
@@ -65,8 +68,8 @@ const Home = () => {
         </div>
       </main>
 
-      {/* Input Form - Adjusted to account for Navbar height */}
-      <div className="w-full px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-100 mb-14">
+      {/* Input Form */}
+      <div className="fixed bottom-14 left-0 w-full px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-100">
         <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
           <div className="relative group">
             <input
@@ -74,11 +77,11 @@ const Home = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Share what's on your mind..."
-              className="w-full px-6 py-4 bg-white rounded-2xl text-gray-900 shadow-sm ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
+              className="w-full px-6 py-4 bg-white rounded-2xl text-gray-900 shadow-md ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-emerald-500 text-white rounded-xl shadow-md hover:bg-emerald-600 transition-colors"
             >
               <Send className="h-5 w-5" />
             </button>
