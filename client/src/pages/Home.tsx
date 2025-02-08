@@ -69,7 +69,7 @@ const Home = () => {
       </main>
 
       {/* Input Form */}
-      <div className="fixed bottom-14 left-0 w-full px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-100">
+      <div className="fixed bottom-16 left-0 w-full px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-100">
         <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
           <div className="relative group">
             <input
@@ -77,7 +77,7 @@ const Home = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Share what's on your mind..."
-              className="w-full px-6 py-4 bg-white rounded-2xl text-gray-900 shadow-md ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
+              className="w-full px-6 py-4 bg-white rounded-2xl text-gray-900  ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
             />
             <button
               type="submit"
