@@ -68,7 +68,7 @@ const Community = () => {
 
       setCommunity((prevCommunity) => ({
         ...prevCommunity,
-        boxPosts: [createdPost, ...prevCommunity.boxPosts],
+        boxPosts: [...prevCommunity.boxPosts, createdPost], // Changed this line to add new post at the end
         boxPostsCount: prevCommunity.boxPostsCount + 1,
       }));
 

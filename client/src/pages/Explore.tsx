@@ -13,6 +13,7 @@ const Explore = () => {
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const username = localStorage.getItem("username");
+  const encodedUsername = encodeURIComponent(username);
   const endpoint = import.meta.env.VITE_RUNNING_ENV === "dev"
     ? import.meta.env.VITE_DEV_API_URL
     : import.meta.env.VITE_PROD_API_URL;
@@ -26,7 +27,7 @@ const Explore = () => {
   const fetchCommunities = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${endpoint}/random-box/${username}`);
+      const { data } = await axios.get(`${endpoint}/random-box/${encodedUsername}`);
       setCommunities(data.box ? [data.box] : []);
     } catch (error) {
       console.error("Error fetching communities:", error);
@@ -37,7 +38,7 @@ const Explore = () => {
 
   useEffect(() => {
     fetchCommunities();
-  }, [endpoint, username]);
+  }, [endpoint, encodedUsername]);
 
   useEffect(() => {
     const handleReload = () => {
@@ -47,55 +48,31 @@ const Explore = () => {
     return () => window.removeEventListener('reloadCommunity', handleReload);
   }, []);
 
-  const toggleDescription = (id) => {
-    setShowFullDescriptions((prev) => ({ ...prev, [id]: !prev[id] }));
+  const handleClose = () => {
+    navigate(`/${encodedUsername}/dashboard`);
   };
 
-  console.log("communities", communities[0]);
-
-  if (loading) {
-    return (
-      <div className="min-h-[calc(100vh-64px)] bg-white flex justify-center">
-        <div className="w-full max-w-2xl bg-white">
-          <div className="h-16 bg-white/80 backdrop-blur-md animate-pulse" />
-          <div className="h-48 bg-gray-200 animate-pulse" />
-          <div className="p-4 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex flex-col space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
-                <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Rest of the component remains the same until the close button
   return (
     <div className="min-h-[calc(100vh-128px)] bg-white flex justify-center">
       <div className="w-full max-w-2xl bg-white shadow-sm flex flex-col">
-        {/* Fixed Header */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center px-4 shrink-0 sticky top-0 z-10">
-          
           <div className="flex items-center flex-1">
             <img
-              src={communities[0].boxImage}
-              alt={communities[0].boxName}
+              src={communities[0]?.boxImage}
+              alt={communities[0]?.boxName}
               className="w-10 h-10 rounded-full object-cover"
             />
             <div className="ml-3">
-              <h1 className="font-medium text-gray-900">{communities[0].boxName}</h1>
+              <h1 className="font-medium text-gray-900">{communities[0]?.boxName}</h1>
               <p className="text-xs text-gray-500">
-                {communities[0].boxMembersCount} members • {communities[0].boxVisits} visits
+                {communities[0]?.boxMembersCount} members • {communities[0]?.boxVisits} visits
               </p>
             </div>
           </div>
           <button
             className="p-2 hover:text-emerald-600 transition-colors"
-            onClick={() => {
-              navigate(`/${username}/dashboard`);
-            }}
+            onClick={handleClose}
           >
             <X className="w-6 h-6" />
           </button>
