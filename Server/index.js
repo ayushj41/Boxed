@@ -41,9 +41,20 @@ const userSchema = new mongoose.Schema({
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Box",
-      default: [],
     },
   ],
+});
+
+// Ensure every new user has a default box ID
+userSchema.pre("save", function (next) {
+  if (!this.boxes || this.boxes.length === 0) {
+    this.boxes = [new mongoose.Types.ObjectId("67a7bb9e85cc5705d29e306f")];
+    // update the bockMembersCount
+    Box.findByIdAndUpdate("67a7bb9e85cc5705d29e306f", {
+      $inc: { boxMembersCount: 1 },
+    }).exec();
+  }
+  next();
 });
 
 export const User = mongoose.model("User", userSchema);
@@ -199,14 +210,14 @@ app.get("/getlogs/:userName", async (req, res) => {
 // Endpoint to create a single Box
 app.post("/box", async (req, res) => {
   try {
-    const { boxName, boxImage } = req.body;
-    if (!boxName || !boxImage) {
+    const { boxName, boxImage, boxDescription } = req.body;
+    if (!boxName || !boxImage || !boxDescription) {
       return res
         .status(400)
         .json({ message: "Box name and image are required" });
     }
 
-    const newBox = new Box({ boxName, boxImage });
+    const newBox = new Box({ boxName, boxImage, boxDescription });
     await newBox.save();
     res.status(201).json({ message: "Box created successfully", box: newBox });
   } catch (error) {
@@ -271,6 +282,42 @@ app.post("/bulk/boxes", async (req, res) => {
   }
 });
 
+// Endpoint for bulk uploads of Logs
+app.post("/bulk/addlogs", async (req, res) => {
+  try {
+    const { logs } = req.body;
+    if (!Array.isArray(logs) || logs.length === 0) {
+      return res.status(400).json({ message: "Invalid or empty logs array" });
+    }
+
+    // Create logs in bulk
+    const createdLogs = await Log.insertMany(
+      logs.map(({ message }) => ({ message }))
+    );
+
+    // Map logs to users and update them
+    const userUpdates = logs.map(async ({ userName }, index) => {
+      const user = await User.findOne({ userName });
+      if (user) {
+        user.logs.push(createdLogs[index]._id);
+        await user.save();
+      }
+    });
+
+    await Promise.all(userUpdates);
+
+    res.status(201).json({
+      message: "Logs added successfully and users updated",
+      logs: createdLogs,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error in bulk log addition",
+      error: error.message,
+    });
+  }
+});
+
 // Endpoint for bulk uploads of Posts
 app.post("/bulk/posts", async (req, res) => {
   try {
@@ -279,18 +326,32 @@ app.post("/bulk/posts", async (req, res) => {
       return res.status(400).json({ message: "Invalid or empty posts array" });
     }
 
-    const createdPosts = await Post.insertMany(posts);
-    const postUpdates = createdPosts.map((post) =>
-      Box.findByIdAndUpdate(post.postBox, {
-        $push: { boxPosts: post._id },
-        $inc: { boxPostsCount: 1 },
-      })
-    );
-    await Promise.all(postUpdates);
+    // Batch insert posts
+    const createdPosts = await Post.insertMany(posts, { ordered: false });
 
-    res
-      .status(201)
-      .json({ message: "Posts created successfully", posts: createdPosts });
+    // Group by `postBox` to batch update box records
+    const boxUpdates = createdPosts.reduce((acc, post) => {
+      if (!acc[post.postBox]) acc[post.postBox] = [];
+      acc[post.postBox].push(post._id);
+      return acc;
+    }, {});
+
+    // Perform batch updates for boxes
+    const updatePromises = Object.entries(boxUpdates).map(([boxId, postIds]) =>
+      Box.updateOne(
+        { _id: boxId },
+        {
+          $push: { boxPosts: { $each: postIds } },
+          $inc: { boxPostsCount: postIds.length },
+        }
+      )
+    );
+    await Promise.all(updatePromises);
+
+    res.status(201).json({
+      message: "Bulk posts created successfully",
+      count: createdPosts.length,
+    });
   } catch (error) {
     res
       .status(500)
