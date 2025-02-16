@@ -34,7 +34,9 @@ function App() {
       <div className="min-h-screen bg-white pb-16">
         <Routes>
           {/* Authentication Page */}
-          <Route path="/auth" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />} />
+          {/* <Route path="/auth" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />} /> */}
+          <Route path="/auth" element={ username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />
+} />
 
           {/* Protected Routes with Username */}
           <Route path="/:username" element={<ProtectedRoute><UsernameWrapper Component={Home} /></ProtectedRoute>} />
