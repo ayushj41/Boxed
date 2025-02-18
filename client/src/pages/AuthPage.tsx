@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Routes, Route } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 
@@ -23,7 +23,8 @@ const AuthPage = ({ setUsername }) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetCode, setResetCode] = useState("");
-  const [view, setView] = useState("login"); // login, signup, forgotPassword, resetCode, newPassword
+  const [verificationCode, setVerificationCode] = useState("");
+  const [view, setView] = useState("login"); // login, signup, forgotPassword, resetCode, newPassword, verifyEmail
   const [message, setMessage] = useState(null);
 
   const navigate = useNavigate();
@@ -32,9 +33,7 @@ const AuthPage = ({ setUsername }) => {
   const { signOut } = useAuth();
   const { saveUserToMongo } = useMongoAuth();
 
-  const extractUsernameFromEmail = (email) => {
-    return email.split('@')[0];
-  };
+  const extractUsernameFromEmail = (email) => email.split('@')[0];
 
   // Handle Login
   const handleLogin = async (e) => {
@@ -42,11 +41,8 @@ const AuthPage = ({ setUsername }) => {
     if (!email.trim() || !password.trim()) return;
 
     try {
-      await signOut();
-      const result = await signIn.create({
-        identifier: email.trim(),
-        password: password.trim()
-      });
+      await signOut(); // Sign out any existing session
+      const result = await signIn.create({ identifier: email.trim(), password: password.trim() });
 
       if (result.status === "complete") {
         await setSignInActive({ session: result.createdSessionId });
@@ -68,26 +64,65 @@ const AuthPage = ({ setUsername }) => {
       return;
     }
 
+    // Ensure the CAPTCHA element is present
+    const captchaElement = document.getElementById("clerk-captcha");
+    if (!captchaElement) {
+      setMessage({ type: "error", text: "CAPTCHA element not found" });
+      return;
+    }
+
     try {
-      const signUpAttempt = await signUp.create({
-        emailAddress: email.trim(),
-        password: password.trim()
-      });
+      await signOut(); // Sign out any existing session
+
+      if (!signUp) {
+        setMessage({ type: "error", text: "Sign up service is unavailable" });
+        return;
+      }
+
+      const signUpAttempt = await signUp.create({ emailAddress: email.trim(), password: password.trim() });
 
       if (signUpAttempt.status === "complete") {
         // Save user to MongoDB
         await saveUserToMongo({
           email: email.trim(),
-          username: extractUsernameFromEmail(email)
+          username: extractUsernameFromEmail(email),
         });
 
+        // Send verification email with passcode
+        await signUp.prepareEmailAddressVerification({
+          strategy: 'email_code',
+        });
+
+        setView("verifyEmail");
+        setMessage({ type: "info", text: "Verification email sent! Please check your inbox." });
+      } else {
+        setMessage({ type: "error", text: "Sign up incomplete. Please try again." });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: error.errors?.[0]?.message || "Error creating account" });
+    }
+  };
+
+  // Handle Email Verification
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+
+    try {
+      const signUpAttempt = await signUp.attemptEmailAddressVerification({
+        code: verificationCode.trim(),
+      });
+
+      if (signUpAttempt.status === "complete") {
+        await setSignInActive({ session: signUpAttempt.createdSessionId });
         const username = extractUsernameFromEmail(email);
         setUsername(username);
         localStorage.setItem("username", username);
         navigate(`/${username}/dashboard`);
+      } else {
+        setMessage({ type: "error", text: "Verification failed. Please try again." });
       }
     } catch (error) {
-      setMessage({ type: "error", text: error.errors?.[0]?.message || "Error creating account" });
+      setMessage({ type: "error", text: error.errors?.[0]?.message || "Error verifying email" });
     }
   };
 
@@ -133,9 +168,7 @@ const AuthPage = ({ setUsername }) => {
     }
 
     try {
-      await signIn.resetPassword({
-        password: password.trim(),
-      });
+      await signIn.resetPassword({ password: password.trim() });
       setMessage({ type: "success", text: "Password reset successful" });
       setView("login");
     } catch (error) {
@@ -147,15 +180,56 @@ const AuthPage = ({ setUsername }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
         {message && (
-          <p className={`text-center mb-4 ${
-            message.type === "error" ? "text-red-500" : 
-            message.type === "info" ? "text-blue-500" : 
-            "text-green-500"}`}
-          >
+          <p className={`text-center mb-4 ${message.type === "error" ? "text-red-500" : message.type === "info" ? "text-blue-500" : "text-green-500"}`}>
             {message.text}
           </p>
         )}
 
+        {/* Render forms based on view state */}
+        {view === "resetCode" && (
+          <form onSubmit={handleResetCode}>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Enter Reset Code</h2>
+            <input
+              type="text"
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value)}
+              placeholder="Enter reset code"
+              className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Verify Code
+            </button>
+          </form>
+        )}
+        {view === "forgotPassword" && (
+          <form onSubmit={handleForgotPassword}>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Reset Password</h2>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors mb-4"
+            >
+              Send Reset Code
+            </button>
+            <p 
+              className="text-center text-blue-500 hover:underline cursor-pointer"
+              onClick={() => setView("login")}
+            >
+              Back to Login
+            </p>
+          </form>
+        )}
         {view === "login" && (
           <form onSubmit={handleLogin}>
             <h2 className="text-2xl font-bold mb-6 text-gray-900">Log in</h2>
@@ -225,6 +299,7 @@ const AuthPage = ({ setUsername }) => {
               className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            <div id="clerk-captcha" className="mb-4"></div> {/* Ensure CAPTCHA is rendered */}
             <button
               type="submit"
               className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors mb-4"
@@ -240,40 +315,14 @@ const AuthPage = ({ setUsername }) => {
           </form>
         )}
 
-        {view === "forgotPassword" && (
-          <form onSubmit={handleForgotPassword}>
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Reset Password</h2>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors mb-4"
-            >
-              Send Reset Code
-            </button>
-            <p 
-              className="text-center text-blue-500 hover:underline cursor-pointer"
-              onClick={() => setView("login")}
-            >
-              Back to Login
-            </p>
-          </form>
-        )}
-
-        {view === "resetCode" && (
-          <form onSubmit={handleResetCode}>
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Enter Reset Code</h2>
+        {view === "verifyEmail" && (
+          <form onSubmit={handleVerifyEmail}>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Verify your email</h2>
             <input
               type="text"
-              value={resetCode}
-              onChange={(e) => setResetCode(e.target.value)}
-              placeholder="Enter reset code"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter verification code"
               className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -281,7 +330,7 @@ const AuthPage = ({ setUsername }) => {
               type="submit"
               className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
             >
-              Verify Code
+              Verify
             </button>
           </form>
         )}
@@ -313,6 +362,7 @@ const AuthPage = ({ setUsername }) => {
             </button>
           </form>
         )}
+        
       </div>
     </div>
   );

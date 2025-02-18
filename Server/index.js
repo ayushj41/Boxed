@@ -156,6 +156,11 @@ app.post("/auth", async (req, res) => {
     res.status(500).json({ message: "Error during authentication", error: error.message });
   }
 });
+// Use the user routes
+app.use('/api', verifyClerkToken, userRoutes);
+// Use the AI routes
+app.use('/ai', AiRouter);
+
 
 // Endpoint to store a message in the logs array
 app.post("/addlogs", async (req, res) => {
