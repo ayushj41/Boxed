@@ -2,10 +2,11 @@ import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
+dotenv.config();
 import cors from "cors";
 import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
-dotenv.config();
+
 const app = express();
 const PORT = 3000;
 
@@ -13,14 +14,26 @@ const endpoint =
   process.env.ENV === "dev"
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
-
+console.log(endpoint);
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+const allowedOrigins = [process.env.DEV_FRONTEND_URL, process.env.PROD_FRONTEND_URL];
+console.log(allowedOrigins);
 app.use(
   cors({
-    origin: endpoint,
-    credentials: true,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('Blocked origin:', origin); // Debug log
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
   })
 );
 
@@ -36,6 +49,8 @@ mongoose
 // Define User Schema
 const userSchema = new mongoose.Schema({
   userName: { type: String, unique: true, required: true },
+  email: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
   logs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Log", default: [] }],
   boxes: [
     {
@@ -110,32 +125,35 @@ const Post = mongoose.model("Post", postSchema);
 // Authentication API
 app.post("/auth", async (req, res) => {
   try {
-    const { userName, action } = req.body;
-    if (!userName)
-      return res.status(400).json({ message: "Username is required" });
+    const { userName, email, password, action } = req.body;
+    if (!userName || !email || !password) {
+      return res.status(400).json({ message: "Username, email, and password are required" });
+    }
 
     let user = await User.findOne({ userName });
 
     if (action === "register") {
-      if (user)
+      if (user) {
         return res.status(400).json({ message: "Username already taken" });
-      user = new User({ userName });
+      }
+      user = new User({ userName, email, password });
       await user.save();
-      return res
-        .status(201)
-        .json({ message: "User registered successfully", user });
+      return res.status(201).json({ message: "User registered successfully", user });
     }
 
     if (action === "login") {
-      if (!user) return res.status(400).json({ message: "User not found" });
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      if (user.password !== password) {
+        return res.status(400).json({ message: "Invalid password" });
+      }
       return res.status(200).json({ message: "Login successful", user });
     }
 
     res.status(400).json({ message: "Invalid action" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error during authentication", error: error.message });
+    res.status(500).json({ message: "Error during authentication", error: error.message });
   }
 });
 
