@@ -1,9 +1,15 @@
 import React, { useState } from "react";
-import { useNavigate, Routes, Route } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
+import { SignUpResource } from "@clerk/types";
 import axios from "axios";
 
-// Custom hook for MongoDB operations
+// Define message type
+type MessageType = {
+  type: "error" | "info" | "success";
+  text: string;
+} | null;
+
 const useMongoAuth = () => {
   const saveUserToMongo = async (userData) => {
     try {
@@ -14,7 +20,6 @@ const useMongoAuth = () => {
       throw error;
     }
   };
-
   return { saveUserToMongo };
 };
 
@@ -22,32 +27,28 @@ const AuthPage = ({ setUsername }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [resetCode, setResetCode] = useState("");
-  const [view, setView] = useState("login"); // login, signup, forgotPassword, resetCode, newPassword
-  const [message, setMessage] = useState(null);
-
+  const [verificationCode, setVerificationCode] = useState("");
+  const [view, setView] = useState("login");
+  const [pendingSignUp, setPendingSignUp] = useState<SignUpResource | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<MessageType>(null);
   const navigate = useNavigate();
-  const { signIn, setActive: setSignInActive } = useSignIn();
-  const { signUp } = useSignUp();
+  const { signIn, isLoaded: signInLoaded, setActive: setSignInActive } = useSignIn();
+  const { signUp, isLoaded: signUpLoaded, setActive: setSignUpActive } = useSignUp();
   const { signOut } = useAuth();
   const { saveUserToMongo } = useMongoAuth();
 
-  const extractUsernameFromEmail = (email) => {
-    return email.split('@')[0];
-  };
+  if (!signInLoaded || !signUpLoaded) return null;
 
-  // Handle Login
+  const extractUsernameFromEmail = (email) => email.split('@')[0];
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
-
     try {
+      setIsLoading(true);
       await signOut();
-      const result = await signIn.create({
-        identifier: email.trim(),
-        password: password.trim()
-      });
-
+      const result = await signIn.create({ identifier: email.trim(), password: password.trim() });
       if (result.status === "complete") {
         await setSignInActive({ session: result.createdSessionId });
         const username = extractUsernameFromEmail(email);
@@ -55,76 +56,120 @@ const AuthPage = ({ setUsername }) => {
         localStorage.setItem("username", username);
         navigate(`/${username}/dashboard`);
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: "error", text: "Invalid email or password" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle Sign Up
-  const handleSignUp = async (e) => {
+  const handleSignUp = async (e:React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim() || password !== confirmPassword) {
       setMessage({ type: "error", text: "Passwords don't match" });
       return;
     }
-
     try {
-      const signUpAttempt = await signUp.create({
-        emailAddress: email.trim(),
-        password: password.trim()
-      });
+      setIsLoading(true);
+      const signUpAttempt = await signUp.create({ emailAddress: email.trim(), password: password.trim() });
+      setPendingSignUp(signUpAttempt);
+      if (signUpAttempt.status === "missing_requirements") {
+        const emailVerification = await signUpAttempt.prepareEmailAddressVerification({ strategy: "email_code" });
+        if (emailVerification.status === "missing_requirements") {
+          setView("verifyEmail");
+          setMessage({ type: "info", text: "Please check your email for the verification code" });
+        }
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Error creating account" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      if (signUpAttempt.status === "complete") {
-        // Save user to MongoDB
-        await saveUserToMongo({
-          email: email.trim(),
-          username: extractUsernameFromEmail(email)
-        });
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    if (!verificationCode.trim() || !pendingSignUp) return;
+    try {
+      setIsLoading(true);
+      setMessage(null);
+      const verification = await pendingSignUp.attemptEmailAddressVerification({ code: verificationCode.trim() });
+      console.log("Verification response:", verification);
+      console.log("Missing required fields:", verification.requiredFields);
 
+      if (verification.status === "complete") {
+        await setSignUpActive({ session: verification.createdSessionId });
+        try {
+          await saveUserToMongo({ email: email.trim(), username: extractUsernameFromEmail(email) });
+        } catch (mongoError) {
+          console.error("MongoDB save error:", mongoError);
+        }
         const username = extractUsernameFromEmail(email);
         setUsername(username);
         localStorage.setItem("username", username);
         navigate(`/${username}/dashboard`);
+      } else {
+        setMessage({ type: "error", text: "Verification incomplete. Please try again." });
       }
-    } catch (error) {
-      setMessage({ type: "error", text: error.errors?.[0]?.message || "Error creating account" });
+    } catch (error){
+      console.error("Verification failed:", error);
+      setMessage({ type: "error", text: "Invalid verification code" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle Forgot Password
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim()) {
+      setMessage({ type: "error", text: "Please enter your email" });
+      return;
+    }
 
     try {
-      await signIn.create({
+      setIsLoading(true);
+      const signInAttempt = await signIn.create({
         strategy: "reset_password_email_code",
         identifier: email.trim(),
       });
-      setView("resetCode");
-      setMessage({ type: "info", text: "Reset code sent to your email" });
+
+      if (signInAttempt.status === "needs_first_factor") {
+        setView("resetCode");
+        setMessage({ type: "info", text: "Reset code sent to your email" });
+      }
     } catch (error) {
+      console.error("Password reset error:", error);
       setMessage({ type: "error", text: "Error sending reset code" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle Reset Code Verification
   const handleResetCode = async (e) => {
     e.preventDefault();
-    if (!resetCode.trim()) return;
+    if (!verificationCode.trim()) {
+      setMessage({ type: "error", text: "Please enter the verification code" });
+      return;
+    }
 
     try {
-      await signIn.attemptFirstFactor({
+      setIsLoading(true);
+      const result = await signIn.attemptFirstFactor({
         strategy: "reset_password_email_code",
-        code: resetCode.trim(),
+        code: verificationCode.trim(),
       });
-      setView("newPassword");
+
+      if (result.status === "needs_new_password") {
+        setView("newPassword");
+      }
     } catch (error) {
+      console.error("Reset code error:", error);
       setMessage({ type: "error", text: "Invalid reset code" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle Password Reset
   const handlePasswordReset = async (e) => {
     e.preventDefault();
     if (!password.trim() || password !== confirmPassword) {
@@ -133,13 +178,16 @@ const AuthPage = ({ setUsername }) => {
     }
 
     try {
-      await signIn.resetPassword({
-        password: password.trim(),
-      });
+      setIsLoading(true);
+      await signIn.resetPassword({ password: password.trim() });
+
       setMessage({ type: "success", text: "Password reset successful" });
       setView("login");
     } catch (error) {
+      console.error("Password reset error:", error);
       setMessage({ type: "error", text: "Error resetting password" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -163,7 +211,7 @@ const AuthPage = ({ setUsername }) => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address or phone number"
+              placeholder="Email address"
               className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -229,6 +277,7 @@ const AuthPage = ({ setUsername }) => {
               type="submit"
               className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors mb-4"
             >
+              <div id="clerk-captcha"></div>
               Sign Up
             </button>
             <p 
@@ -237,6 +286,30 @@ const AuthPage = ({ setUsername }) => {
             >
               Already have an account?
             </p>
+          </form>
+        )}
+
+        {view === "verifyEmail" && (
+          <form onSubmit={handleVerifyEmail}>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Verify Email</h2>
+            <p className="text-gray-600 mb-4">
+              Please enter the verification code sent to your email.
+            </p>
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter verification code"
+              className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors mb-4"
+            >
+              {isLoading ? "Verifying..." : "Verify Email"}
+            </button>
           </form>
         )}
 
@@ -271,8 +344,8 @@ const AuthPage = ({ setUsername }) => {
             <h2 className="text-2xl font-bold mb-6 text-gray-900">Enter Reset Code</h2>
             <input
               type="text"
-              value={resetCode}
-              onChange={(e) => setResetCode(e.target.value)}
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
               placeholder="Enter reset code"
               className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
