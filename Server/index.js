@@ -4,22 +4,23 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 dotenv.config();
 import cors from "cors";
-import { Router } from "express";
+import { Webhook } from "svix";
 import { AiRouter, cron_job_ai } from "./ai.js";
 
 const app = express();
+const router = express.Router();
 const PORT = 3000;
 
+const svixSecret = process.env.SIGNING_SECRET; // Store in environment variables
 const endpoint =
   process.env.ENV === "dev"
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
-console.log(endpoint);
+
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 const allowedOrigins = [process.env.DEV_FRONTEND_URL, process.env.PROD_FRONTEND_URL];
-console.log(allowedOrigins);
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -31,9 +32,9 @@ app.use(
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200
   })
 );
 
@@ -82,8 +83,7 @@ const logSchema = new mongoose.Schema({
 
 export const Log = mongoose.model("Log", logSchema);
 
-//Define box schema
-
+// Define Box Schema
 const boxSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: false },
   boxName: { type: String, required: true },
@@ -107,8 +107,7 @@ const boxSchema = new mongoose.Schema({
 
 export const Box = mongoose.model("Box", boxSchema);
 
-//Define post schema
-
+// Define Post Schema
 const postSchema = new mongoose.Schema({
   postContent: { type: String, required: true },
   postAuthor: {
@@ -121,6 +120,108 @@ const postSchema = new mongoose.Schema({
 });
 
 const Post = mongoose.model("Post", postSchema);
+
+// Clerk Webhook
+router.post("/clerk-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  if (!svixSecret) {
+    console.error("Missing SIGNING_SECRET env variable");
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+console.log(svixSecret);
+  // Get the headers
+  const svix_id = req.headers["svix-id"];
+  const svix_timestamp = req.headers["svix-timestamp"];
+  const svix_signature = req.headers["svix-signature"];
+
+  // If there are missing headers, error out
+  if (!svix_id || !svix_timestamp || !svix_signature) {
+    return res.status(400).json({ error: "Missing required Svix headers" });
+  }
+
+  // Log the headers for debugging
+  console.log("Svix Headers:", { svix_id, svix_timestamp, svix_signature });
+
+  // Get the body as raw bytes
+  const payload = req.body.toString("utf8");
+  const body = JSON.stringify(payload);
+
+  // Validate Svix Signature
+  try {
+    // Creates new Webhook instance with secret
+    const wh = new Webhook(svixSecret);
+    try{
+    wh.verify(payload, headers);
+    }catch(err){
+      console.log(err.message);
+    }
+    // Verify the webhook payload
+    const evt = wh.verify(body, {
+      "svix-id": svix_id,
+      "svix-timestamp": svix_timestamp,
+      "svix-signature": svix_signature
+    });
+
+    // Get the event type and data
+    const { type, data } = evt;
+
+    console.log(`Webhook received: ${type}`, data);
+
+    // Handle the webhook
+    switch (type) {
+      case "user.created":
+        const email = data.email_addresses?.[0]?.email_address;
+        const username = email ? email.split('@')[0] : `user_${data.id}`;
+
+        // Create new user in MongoDB
+        const newUser = new User({
+          email: email,
+          userName: username,
+          password: "clerk-managed", // Since Clerk handles authentication
+          boxes: [new mongoose.Types.ObjectId("67a7bb9e85cc5705d29e306f")] // Default box
+        });
+
+        await newUser.save();
+
+        // Update box members count
+        await Box.findByIdAndUpdate("67a7bb9e85cc5705d29e306f", {
+          $inc: { boxMembersCount: 1 }
+        });
+
+        console.log(`Created new user: ${username}`);
+        break;
+
+      case "user.updated":
+        // Handle user updates if needed
+        const updatedEmail = data.email_addresses?.[0]?.email_address;
+        if (updatedEmail) {
+          await User.findOneAndUpdate(
+            { email: updatedEmail },
+            { 
+              userName: updatedEmail.split('@')[0],
+              // Add other fields you want to update
+            }
+          );
+        }
+        break;
+
+      case "user.deleted":
+        // Handle user deletion
+        const deletedEmail = data.email_addresses?.[0]?.email_address;
+        if (deletedEmail) {
+          await User.findOneAndDelete({ email: deletedEmail });
+        }
+        break;
+
+      default:
+        console.log(`Unhandled webhook type: ${type}`);
+    }
+
+    return res.status(200).json({ message: "Webhook processed successfully" });
+  } catch (error) {
+    console.error("Webhook verification failed:", error);
+    return res.status(400).json({ error: "Invalid webhook signature", details: error.message });
+  }
+});
 
 // Authentication API
 app.post("/auth", async (req, res) => {
@@ -496,7 +597,9 @@ export async function getAllBoxes() {
 
 app.use("/ai", AiRouter);
 
-// cron_job_ai();
+// Use the router
+app.use(router);
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

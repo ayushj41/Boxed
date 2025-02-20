@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
 import { SignUpResource } from "@clerk/types";
@@ -20,7 +20,18 @@ const useMongoAuth = () => {
       throw error;
     }
   };
-  return { saveUserToMongo };
+
+  const fetchUserFromMongo = async (userId) => {
+    try {
+      const response = await axios.get(`/api/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user from MongoDB:', error);
+      throw error;
+    }
+  };
+
+  return { saveUserToMongo, fetchUserFromMongo };
 };
 
 const AuthPage = ({ setUsername }) => {
@@ -35,8 +46,18 @@ const AuthPage = ({ setUsername }) => {
   const navigate = useNavigate();
   const { signIn, isLoaded: signInLoaded, setActive: setSignInActive } = useSignIn();
   const { signUp, isLoaded: signUpLoaded, setActive: setSignUpActive } = useSignUp();
-  const { signOut } = useAuth();
-  const { saveUserToMongo } = useMongoAuth();
+  const { signOut, user } = useAuth();
+  const { saveUserToMongo, fetchUserFromMongo } = useMongoAuth();
+
+  useEffect(() => {
+    if (user) {
+      // Fetch latest user data from MongoDB if needed
+      fetchUserFromMongo(user.id).then((userData) => {
+        console.log("Fetched user data:", userData);
+        // Update state or context with the fetched user data if needed
+      });
+    }
+  }, [user]);
 
   if (!signInLoaded || !signUpLoaded) return null;
 
@@ -63,7 +84,7 @@ const AuthPage = ({ setUsername }) => {
     }
   };
 
-  const handleSignUp = async (e:React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim() || password !== confirmPassword) {
       setMessage({ type: "error", text: "Passwords don't match" });
@@ -75,6 +96,7 @@ const AuthPage = ({ setUsername }) => {
       setPendingSignUp(signUpAttempt);
       if (signUpAttempt.status === "missing_requirements") {
         const emailVerification = await signUpAttempt.prepareEmailAddressVerification({ strategy: "email_code" });
+        console.log("Email verification response:", emailVerification);
         if (emailVerification.status === "missing_requirements") {
           setView("verifyEmail");
           setMessage({ type: "info", text: "Please check your email for the verification code" });
@@ -111,7 +133,7 @@ const AuthPage = ({ setUsername }) => {
       } else {
         setMessage({ type: "error", text: "Verification incomplete. Please try again." });
       }
-    } catch (error){
+    } catch (error) {
       console.error("Verification failed:", error);
       setMessage({ type: "error", text: "Invalid verification code" });
     } finally {
