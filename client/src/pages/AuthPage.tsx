@@ -2,26 +2,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignIn, useSignUp, useAuth } from "@clerk/clerk-react";
 import { SignUpResource } from "@clerk/types";
-import axios from "axios";
 
 // Define message type
 type MessageType = {
   type: "error" | "info" | "success";
   text: string;
 } | null;
-
-const useMongoAuth = () => {
-  const saveUserToMongo = async (userData) => {
-    try {
-      const response = await axios.post('/api/users', userData);
-      return response.data;
-    } catch (error) {
-      console.error('Error saving user to MongoDB:', error);
-      throw error;
-    }
-  };
-  return { saveUserToMongo };
-};
 
 const AuthPage = ({ setUsername }) => {
   const [email, setEmail] = useState("");
@@ -36,11 +22,8 @@ const AuthPage = ({ setUsername }) => {
   const { signIn, isLoaded: signInLoaded, setActive: setSignInActive } = useSignIn();
   const { signUp, isLoaded: signUpLoaded, setActive: setSignUpActive } = useSignUp();
   const { signOut } = useAuth();
-  const { saveUserToMongo } = useMongoAuth();
 
   if (!signInLoaded || !signUpLoaded) return null;
-
-  const extractUsernameFromEmail = (email) => email.split('@')[0];
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -51,10 +34,11 @@ const AuthPage = ({ setUsername }) => {
       const result = await signIn.create({ identifier: email.trim(), password: password.trim() });
       if (result.status === "complete") {
         await setSignInActive({ session: result.createdSessionId });
-        const username = extractUsernameFromEmail(email);
+        const username = email;
+        console.log("Username:", email);
         setUsername(username);
         localStorage.setItem("username", username);
-        navigate(`/${username}/dashboard`);
+        navigate(`/dashboard`);
       }
     } catch {
       setMessage({ type: "error", text: "Invalid email or password" });
@@ -99,15 +83,9 @@ const AuthPage = ({ setUsername }) => {
 
       if (verification.status === "complete") {
         await setSignUpActive({ session: verification.createdSessionId });
-        try {
-          await saveUserToMongo({ email: email.trim(), username: extractUsernameFromEmail(email) });
-        } catch (mongoError) {
-          console.error("MongoDB save error:", mongoError);
-        }
-        const username = extractUsernameFromEmail(email);
+        const username = email;
         setUsername(username);
-        localStorage.setItem("username", username);
-        navigate(`/${username}/dashboard`);
+        navigate(`/dashboard`);
       } else {
         setMessage({ type: "error", text: "Verification incomplete. Please try again." });
       }

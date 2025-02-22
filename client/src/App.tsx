@@ -6,11 +6,12 @@ import Community from "./pages/Community";
 import AuthPage from "./pages/AuthPage";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 // Component for protected routes
 function ProtectedRoute({ children }) {
-  const username = localStorage.getItem("username");
-  return username ? children : <Navigate to="/auth" replace />;
+  const { isSignedIn } = useAuth();
+  return isSignedIn ? children : <Navigate to="/auth" replace />;
 }
 
 function UsernameWrapper({ Component }) {
@@ -19,37 +20,29 @@ function UsernameWrapper({ Component }) {
 }
 
 function App() {
-  const [username, setUsername] = useState(localStorage.getItem("username") || "");
-
-  useEffect(() => {
-    if (username) {
-      localStorage.setItem("username", username);
-    } else {
-      localStorage.removeItem("username");
-    }
-  }, [username]);
+  const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const username = user?.username || "";
 
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-white pb-16">
         <Routes>
           {/* Authentication Page */}
-          {/* <Route path="/auth" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />} /> */}
-          <Route path="/auth" element={ username ? <Navigate to={`/${username}/dashboard`} replace /> : <AuthPage setUsername={setUsername} />
-} />
+          <Route path="/auth" element={isSignedIn ? <Navigate to={`/dashboard`} replace /> : <AuthPage />} />
 
           {/* Protected Routes with Username */}
-          <Route path="/:username" element={<ProtectedRoute><UsernameWrapper Component={Home} /></ProtectedRoute>} />
-          <Route path="/:username/explore/" element={<ProtectedRoute><UsernameWrapper Component={Explore} /></ProtectedRoute>} />
-          <Route path="/:username/dashboard" element={<ProtectedRoute><UsernameWrapper Component={Dashboard} /></ProtectedRoute>} />
-          <Route path="/:username/community/:id" element={<ProtectedRoute><UsernameWrapper Component={Community} /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><UsernameWrapper Component={Home} /></ProtectedRoute>} />
+          <Route path="/explore/" element={<ProtectedRoute><UsernameWrapper Component={Explore} /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><UsernameWrapper Component={Dashboard} /></ProtectedRoute>} />
+          <Route path="/community/:id" element={<ProtectedRoute><UsernameWrapper Component={Community} /></ProtectedRoute>} />
 
           {/* Fallback Route - Redirect to Username-Based Routes */}
-          <Route path="*" element={username ? <Navigate to={`/${username}/dashboard`} replace /> : <Navigate to="/auth" replace />} />
+          <Route path="*" element={isSignedIn ? <Navigate to={`/dashboard`} replace /> : <Navigate to="/auth" replace />} />
         </Routes>
 
         {/* Navbar appears only when logged in */}
-        {username && <Navbar />}
+        {isSignedIn && <Navbar />}
       </div>
     </BrowserRouter>
   );

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Share, ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
 import axios from 'axios';
+import { SignOutButton, useUser } from '@clerk/clerk-react';
 
 const Dashboard = () => {
-  const [username, setUsername] = useState(localStorage.getItem("username"));
+  const { user } = useUser();
+  const [username, setUsername] = useState(user?.emailAddresses[0].emailAddress || '');
   const [logs, setLogs] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -46,23 +48,20 @@ const Dashboard = () => {
         <h1 className="text-xl flex-1 flex justify-center items-center font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
             THE BOX
           </h1>
+          <SignOutButton >
           <button
             className="p-2 hover:text-emerald-600 transition-colors"
-            onClick={() => {
-              localStorage.removeItem('username');
-              setUsername(null);
-              window.location.href = "/auth";
-            }}
-          >
+            >
             <LogOut className="w-6 h-6" />
           </button>
+          </SignOutButton>
         </div>
       </header>
 
       <main className="pt-20 px-4 max-w-2xl mx-auto">
         {/* Input section */}
       <div className="mb-8">
-          <Link to={`/${username}`} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
+          <Link to={`/`} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
               <img
                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`}
@@ -78,7 +77,7 @@ const Dashboard = () => {
                 readOnly
                 onClick={(e) => {
                   e.preventDefault();
-                  nav(`/${username}`);
+                  nav(`/`);
                 }}
               />
             </div>
@@ -105,7 +104,7 @@ const Dashboard = () => {
               ) : boxes.map((box) => (
                 <Link
                   key={box._id}
-                  to={`/${username}/community/${box._id}`}
+                  to={`/community/${box._id}`}
                   className="block bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-all w-72"
                 >
                   <div className="aspect-video relative">
@@ -192,7 +191,7 @@ const Dashboard = () => {
             ) : posts.map((post) => (
               
               <div key={post._id} className="p-4 bg-white rounded-xl shadow-sm ring-1 ring-gray-200">
-                <Link to={`/${username}/community/${post.postBox._id}`} key={post._id} >
+                <Link to={`/community/${post.postBox._id}`} key={post._id} >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-emerald-600">
                     {post.postBox.boxName}

@@ -2,12 +2,15 @@ import { useState } from "react";
 import { LogOut, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useUser } from "@clerk/clerk-react";
 
 const Home = () => {
   const [input, setInput] = useState("");
-  const [userName, setUserName] = useState(localStorage.getItem("username"));
+  const { user } = useUser();
   const navigate = useNavigate();
-  const username = localStorage.getItem("username");
+  const username = user?.emailAddresses[0]?.emailAddress;
+
+  console.log(username)
 
   const endpoint =
     import.meta.env.VITE_RUNNING_ENV === "dev"
@@ -24,13 +27,13 @@ const Home = () => {
 
     try {
       const response = await axios.post(`${endpoint}/addlogs`, {
-        userName,
+        userName: username,
         message: input,
       });
 
       console.log("Log stored successfully:", response.data);
       setInput("");
-      navigate(`${userName}/dashboard`);
+      navigate(`/dashboard`);
     } catch (error) {
       console.error("Error storing log:", error.response?.data || error.message);
     }
@@ -40,13 +43,13 @@ const Home = () => {
     <div className="min-h-[calc(100vh-64px)] flex flex-col bg-gradient-to-b from-white to-gray-50 relative">
       <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-10">
         <div className="flex items-center justify-center px-4 h-16 max-w-2xl mx-auto">
-        <h1 className="text-xl flex-1 flex justify-center items-center font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+          <h1 className="text-xl flex-1 flex justify-center items-center font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
             THE BOX
           </h1>
           <button
             className="p-2 hover:text-emerald-600 transition-colors"
             onClick={() => {
-              navigate(`/${username}/dashboard`);
+              navigate(`/dashboard`);
             }}
           >
             <X className="w-6 h-6" />

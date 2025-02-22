@@ -6,6 +6,7 @@ dotenv.config();
 import cors from "cors";
 import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
+import { Webhook } from "svix";
 
 const app = express();
 const PORT = 3000;
@@ -15,10 +16,113 @@ const endpoint =
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
 console.log(endpoint);
+
+app.post(
+  "/api/webhooks",
+  bodyParser.raw({ type: "application/json" }),
+  async function (req, res) {
+    console.log("====================================");
+    console.log("Webhook received");
+    console.log("====================================");
+    // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
+    const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+    if (!WEBHOOK_SECRET) {
+      throw new Error("You need a WEBHOOK_SECRET in your .env");
+    }
+
+    // Get the headers and body
+    const headers = req.headers;
+    const payload = req.body;
+
+    // Get the Svix headers for verification
+    const svix_id = headers["svix-id"];
+    const svix_timestamp = headers["svix-timestamp"];
+    const svix_signature = headers["svix-signature"];
+
+    // If there are no Svix headers, error out
+    if (!svix_id || !svix_timestamp || !svix_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required headers",
+      });
+    }
+
+    // Create a new Svix instance with your secret.
+    const wh = new Webhook(WEBHOOK_SECRET);
+    let evt;
+
+    // Attempt to verify the incoming webhook
+    // If successful, the payload will be available from 'evt'
+    // If the verification fails, error out and  return error code
+    try {
+      evt = wh.verify(payload, {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+      });
+    } catch (err) {
+      console.log("Error verifying webhook:", err.message);
+      return res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    // Do something with the payload
+    // For this guide, you simply log the payload to the console
+    const { id } = evt.data;
+    const eventType = evt.type;
+
+    console.log("====================================");
+    console.log(evt.type);
+    console.log("====================================");
+
+    if (evt.type === "user.created") {
+      console.log("====================================");
+      console.log(evt.data);
+      console.log("====================================");
+      const firstName = evt.data.first_name;
+      const lastName = evt.data.last_name;
+      const email = evt.data.email_addresses[0].email_address;
+      console.log("====================================");
+      console.log(email);
+      console.log("====================================");
+      console.log("====================================");
+      console.log(firstName);
+      console.log("====================================");
+      console.log("====================================");
+      console.log(lastName);
+      console.log("====================================");
+      // save to db
+      User.create({
+        userName: email,
+        email: email,
+      })
+        .then((user) => {
+          return res.status(200).json({
+            success: true,
+            message: "User created",
+            user,
+          });
+        })
+        .catch((error) => {
+          return res.status(400).json({
+            success: false,
+            message: "Error creating user",
+            error,
+          });
+        });
+    }
+  }
+);
+
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-const allowedOrigins = [process.env.DEV_FRONTEND_URL, process.env.PROD_FRONTEND_URL];
+const allowedOrigins = [
+  process.env.DEV_FRONTEND_URL,
+  process.env.PROD_FRONTEND_URL,
+];
 console.log(allowedOrigins);
 app.use(
   cors({
@@ -26,14 +130,14 @@ app.use(
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.log('Blocked origin:', origin); // Debug log
-        callback(new Error('Not allowed by CORS'));
+        console.log("Blocked origin:", origin); // Debug log
+        callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
 
@@ -50,7 +154,6 @@ mongoose
 const userSchema = new mongoose.Schema({
   userName: { type: String, unique: true, required: true },
   email: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
   logs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Log", default: [] }],
   boxes: [
     {
@@ -127,7 +230,9 @@ app.post("/auth", async (req, res) => {
   try {
     const { userName, email, password, action } = req.body;
     if (!userName || !email || !password) {
-      return res.status(400).json({ message: "Username, email, and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Username, email, and password are required" });
     }
 
     let user = await User.findOne({ userName });
@@ -138,7 +243,9 @@ app.post("/auth", async (req, res) => {
       }
       user = new User({ userName, email, password });
       await user.save();
-      return res.status(201).json({ message: "User registered successfully", user });
+      return res
+        .status(201)
+        .json({ message: "User registered successfully", user });
     }
 
     if (action === "login") {
@@ -153,7 +260,9 @@ app.post("/auth", async (req, res) => {
 
     res.status(400).json({ message: "Invalid action" });
   } catch (error) {
-    res.status(500).json({ message: "Error during authentication", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error during authentication", error: error.message });
   }
 });
 
@@ -399,7 +508,9 @@ app.post("/bulk/users", async (req, res) => {
 app.get("/userboxes/:userName", async (req, res) => {
   try {
     const { userName } = req.params;
+    console.log(userName);
     const user = await User.findOne({ userName }).populate("boxes");
+    console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

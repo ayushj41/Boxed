@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { ArrowUp, ChevronDown, ChevronUp, Send, X } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 
 const Explore = () => {
+  const { user } = useUser();
   const [communities, setCommunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFullDescriptions, setShowFullDescriptions] = useState({});
@@ -12,8 +14,7 @@ const Explore = () => {
   
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  const username = localStorage.getItem("username");
-  const encodedUsername = encodeURIComponent(username);
+  const username = user?.emailAddresses[0]?.emailAddress;
   const endpoint = import.meta.env.VITE_RUNNING_ENV === "dev"
     ? import.meta.env.VITE_DEV_API_URL
     : import.meta.env.VITE_PROD_API_URL;
@@ -27,7 +28,7 @@ const Explore = () => {
   const fetchCommunities = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${endpoint}/random-box/${encodedUsername}`);
+      const { data } = await axios.get(`${endpoint}/random-box/${username}`);
       setCommunities(data.box ? [data.box] : []);
     } catch (error) {
       console.error("Error fetching communities:", error);
@@ -49,7 +50,7 @@ const Explore = () => {
   }, []);
 
   const handleClose = () => {
-    navigate(`/${encodedUsername}/dashboard`);
+    navigate(`/dashboard`);
   };
 
   // Rest of the component remains the same until the close button

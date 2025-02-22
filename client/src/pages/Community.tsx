@@ -2,18 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Send, ChevronDown, ChevronUp, ArrowUp } from 'lucide-react';
 import axios from 'axios';
+import { useUser } from '@clerk/clerk-react';
 
 const Community = () => {
-  const { username, id } = useParams();
+  const { id } = useParams();
+  const { user } = useUser();
   const [newPost, setNewPost] = useState('');
   const [community, setCommunity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const messagesEndRef = useRef(null);
-  
   const endpoint = import.meta.env.VITE_RUNNING_ENV === 'dev' ? import.meta.env.VITE_DEV_API_URL : import.meta.env.VITE_PROD_API_URL;
-
+  const username = user?.emailAddresses[0]?.emailAddress;
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -110,7 +111,7 @@ const Community = () => {
       <div className="w-full max-w-2xl bg-white shadow-sm flex flex-col">
         {/* Fixed Header */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center px-4 shrink-0 sticky top-0 z-10">
-          <Link to={`/${username}/dashboard`} className="mr-4 hover:text-emerald-600 transition-colors">
+          <Link to={`/dashboard`} className="mr-4 hover:text-emerald-600 transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           
