@@ -13,18 +13,6 @@ const blockedOrigins = new Set();
 const app = express();
 const PORT = 3000;
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://thebox-mu.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
 
 const endpoint =
   process.env.ENV === "dev"
@@ -42,7 +30,23 @@ const logBlockedOrigin = (origin) => {
     console.log('================================');
   }
 };
-
+console.log(allowedOrigins);
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        logBlockedOrigin(origin); 
+        callback(`Origin ${origin} not allowed by CORS`);
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 app.post(
   "/api/webhooks",
   bodyParser.raw({ type: "application/json" }),
@@ -148,24 +152,9 @@ app.use(bodyParser.json());
 const allowedOrigins = [
   process.env.DEV_FRONTEND_URL,
   process.env.PROD_FRONTEND_URL,
+  'https://thebox-mu.vercel.app'
 ];
-console.log(allowedOrigins);
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        logBlockedOrigin(origin); 
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200,
-  })
-);
+
 
 // Connect to MongoDB
 mongoose
