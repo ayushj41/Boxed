@@ -8,14 +8,40 @@ import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 import { Webhook } from "svix";
 
+const blockedOrigins = new Set();
+
 const app = express();
 const PORT = 3000;
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://thebox-mu.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 const endpoint =
   process.env.ENV === "dev"
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
-console.log(endpoint);
+
+//function to log blocked origins
+const logBlockedOrigin = (origin) => {
+  if (!blockedOrigins.has(origin)) {
+    blockedOrigins.add(origin);
+    console.log('=== CORS Blocked Origin Details ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Blocked Origin:', origin);
+    console.log('Allowed Origins:', allowedOrigins);
+    console.log('================================');
+  }
+};
 
 app.post(
   "/api/webhooks",
@@ -130,7 +156,7 @@ app.use(
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.log("Blocked origin:", origin); // Debug log
+        logBlockedOrigin(origin); 
         callback(new Error("Not allowed by CORS"));
       }
     },
