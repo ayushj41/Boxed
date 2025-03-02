@@ -16,11 +16,9 @@ const endpoint =
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
 
-app.use(
-  cors({
-    origin: endpoint,
-  })
-);
+app.use(cors());
+app.use(express.json());
+app.options("*", cors());
 
 app.post(
   "/api/webhooks",
