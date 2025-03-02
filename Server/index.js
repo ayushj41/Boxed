@@ -8,8 +8,6 @@ import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 import { Webhook } from "svix";
 
-const blockedOrigins = new Set();
-
 const app = express();
 const PORT = 3000;
 
@@ -20,20 +18,11 @@ const endpoint =
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        logBlockedOrigin(origin);
-        callback(`Origin ${origin} not allowed by CORS`);
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: endpoint,
     credentials: true,
-    optionsSuccessStatus: 200,
   })
 );
+
 app.post(
   "/api/webhooks",
   bodyParser.raw({ type: "application/json" }),
