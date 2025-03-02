@@ -39,7 +39,7 @@ const Explore = () => {
 
   useEffect(() => {
     fetchCommunities();
-  }, [endpoint, encodedUsername]);
+  }, [endpoint]);
 
   useEffect(() => {
     const handleReload = () => {
