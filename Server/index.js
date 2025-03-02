@@ -17,7 +17,7 @@ const endpoint =
     : process.env.PROD_FRONTEND_URL;
 
 app.use(cors());
-app.use(express.json());
+
 app.options("*", cors());
 
 app.post(
@@ -120,6 +120,7 @@ app.post(
 );
 
 // Middleware
+app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 const allowedOrigins = [
