@@ -65,7 +65,7 @@ const AuthPage = ({ setUsername }) => {
         }
       }
     } catch (error) {
-      setMessage({ type: "error", text: "Error creating account" });
+      setMessage({ type: "error", text: error?.message || "Error signing up" });
     } finally {
       setIsLoading(false);
     }
