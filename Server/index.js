@@ -13,31 +13,18 @@ const blockedOrigins = new Set();
 const app = express();
 const PORT = 3000;
 
-
 const endpoint =
   process.env.ENV === "dev"
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
 
-//function to log blocked origins
-const logBlockedOrigin = (origin) => {
-  if (!blockedOrigins.has(origin)) {
-    blockedOrigins.add(origin);
-    console.log('=== CORS Blocked Origin Details ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Blocked Origin:', origin);
-    console.log('Allowed Origins:', allowedOrigins);
-    console.log('================================');
-  }
-};
-console.log(allowedOrigins);
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        logBlockedOrigin(origin); 
+        logBlockedOrigin(origin);
         callback(`Origin ${origin} not allowed by CORS`);
       }
     },
@@ -152,9 +139,7 @@ app.use(bodyParser.json());
 const allowedOrigins = [
   process.env.DEV_FRONTEND_URL,
   process.env.PROD_FRONTEND_URL,
-  'https://thebox-mu.vercel.app'
 ];
-
 
 // Connect to MongoDB
 mongoose
