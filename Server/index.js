@@ -19,7 +19,6 @@ const endpoint =
 app.use(
   cors({
     origin: endpoint,
-    credentials: true,
   })
 );
 
