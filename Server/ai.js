@@ -29,6 +29,58 @@ Given a user log detailing an individual's interactions, preferences, and though
 
 export const AiRouter = Router();
 
+class AgentState {
+  constructor() {
+    this.userLogs = [];
+  }
+
+  updateLogs(log) {
+    this.userLogs.push(log);
+  }
+}
+
+// Store agent state for each user session
+const state = new AgentState();
+
+async function llmConversation(userInput) {
+  const messages = [
+    {
+      role: "system",
+      content:
+        "Engage the user in a natural conversation and keep it interesting. Dynamically decide when to switch topics based on engagement.",
+    },
+    ...state.userLogs.map((log) => ({ role: "user", content: log })),
+    { role: "user", content: userInput },
+  ];
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: messages,
+  });
+
+  //add reply to conversation logs
+  state.updateLogs(userInput);
+  state.updateLogs(response.choices[0].message.content);
+
+  return response.choices[0].message.content;
+}
+
+AiRouter.post("/conversation", async (req, res) => {
+  const userInput = req.body.userInput;
+
+  if (!userInput) {
+    return res.status(400).send({ message: "User input is required" });
+  }
+
+  try {
+    const botReply = await llmConversation(userInput);
+    //send entire conversation logs to client
+    res.send({ conversationLogs: state.userLogs });
+  } catch (error) {
+    res.status(500).send({ message: "Error generating reply" });
+  }
+});
+
 AiRouter.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
