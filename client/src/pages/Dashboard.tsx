@@ -202,6 +202,18 @@ const Dashboard = () => {
                 </div>
                 <p className="text-gray-900">{post.postContent}</p>
                 </Link>
+                {post.tags && post.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {post.tags.map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="px-2 py-1 bg-emerald-50 text-emerald-600 text-xs rounded-full"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             
             ))}

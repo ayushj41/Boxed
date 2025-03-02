@@ -7,6 +7,7 @@ import cors from "cors";
 import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 import { Webhook } from "svix";
+import { generateTags } from './tagging_agent.js';
 
 const blockedOrigins = new Set();
 
@@ -236,6 +237,7 @@ const postSchema = new mongoose.Schema({
   },
   postBox: { type: mongoose.Schema.Types.ObjectId, ref: "Box", required: true },
   timestamp: { type: Date, default: Date.now },
+  tags: [{ type: String }]
 });
 
 const Post = mongoose.model("Post", postSchema);
@@ -387,7 +389,15 @@ app.post("/post", async (req, res) => {
     }
     console.log(user._id);
 
-    const newPost = new Post({ postContent, postAuthor: user._id, postBox });
+    // Generate tags for the post content
+    const tags = await generateTags(postContent);
+
+    const newPost = new Post({ 
+      postContent, 
+      postAuthor: user._id, 
+      postBox,
+      tags 
+    });
     await newPost.save();
 
     await Box.findByIdAndUpdate(postBox, {
