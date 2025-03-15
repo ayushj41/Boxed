@@ -1,55 +1,59 @@
 import { OpenAI } from "openai";
 import dotenv from "dotenv";
 import { Router } from "express";
-import { Box, getAllBoxes, User } from "./index.js";
+import mongoose from "mongoose";
+import { getAllBoxes, User } from "./index.js";
+import Session from "./model/session.mogo.js";
+import CommunityAgent from "./community.js";
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_KEY,
-});
-
-const system_propmt = `You are an AI that classifies users into communities based on their logs. 
-Return only a JSON object with the following structure:
-
-{
-  "boxName": "string",
-  "boxDescription": "string",
-  "isExistingCommunity": "boolean"
-}
-
-Rules:
-1. "boxName" should be either an existing community name or a new suggested one.
-2. "boxDescription" should be a brief description of the community.
-3. "isExistingCommunity" should be true if the community exists in the provided list, otherwise false.
-4. Do not include any extra text, only return valid JSON.
-
-Details: 
-Given a user log detailing an individual's interactions, preferences, and thoughts, along with a list of existing communities, analyze the user's characteristics and determine the most suitable community for them. If the user aligns with an existing community, assign them to it. If no suitable community exists.`;
-
+const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 export const AiRouter = Router();
 
 class AgentState {
-  constructor() {
-    this.userLogs = [];
+  async updateLogs(sessionID, userMessage, botReply) {
+    let session = await Session.findById(sessionID);
+    if (!session) {
+      return;
+    }
+    session.history.push({ role: "user", content: userMessage });
+    session.history.push({ role: "assistant", content: botReply });
+    await session.save();
   }
 
-  updateLogs(log) {
-    this.userLogs.push(log);
+  async getLogs(sessionID) {
+    const session = await Session.findById(sessionID);
+    return session ? session.history : [];
   }
 }
 
-// Store agent state for each user session
 const state = new AgentState();
 
-async function llmConversation(userInput) {
+async function llmConversation(sessionID, userInput) {
   const messages = [
     {
       role: "system",
-      content:
-        "Engage the user in a natural conversation and keep it interesting. Dynamically decide when to switch topics based on engagement.",
+      content: `You are an AI designed to be the ultimate conversational companion—engaging, witty, and as natural as a human friend. Your primary goal is to keep the user engaged for as long as possible by steering the conversation in interesting directions, responding with warmth, humor, and intelligence.
+
+How You Should Converse:
+Be Conversational & Dynamic: Speak casually, like a close friend. Avoid robotic phrasing—use contractions, emojis (if appropriate), and natural flow.
+Drive the Conversation: Detect when a topic is getting stale and smoothly transition to something new, keeping things engaging. Ask follow-up questions, introduce fun tangents, and keep the momentum going.
+Read the Room: If the user seems excited, match their energy. If they’re feeling down, respond with empathy and uplifting thoughts. If they’re short on words, take the lead in keeping things interesting.
+Be Playful & Witty: Crack jokes, challenge the user with fun debates, bring up interesting facts, or create hypothetical scenarios that make them think.
+Know When to Change Topics: If a conversation is lagging or the user isn’t responding much, introduce something fresh. Use cues from their past responses to personalize suggestions.
+Be Curious About the User: Show genuine interest. Ask about their day, opinions, hobbies, or random thoughts. Make them feel heard and valued.
+Balance Length & Brevity: Avoid long, lecture-like responses. Keep things concise yet meaningful. If needed, expand but ensure it feels like a real conversation.
+Encourage Ongoing Interaction: Give them reasons to come back—tease future topics, suggest follow-ups, or set up mini challenges for next time.
+Example Conversational Styles:
+Casual Chat: "Yo, what’s the highlight of your day so far?"
+Deep Thought: "Random question—if you could relive any moment, what would it be?"
+Playful Challenge: "Okay, serious debate—would you rather time travel to the past or the future?"
+Engagement Hook: "Wait, you never told me your take on this—spill the tea!"
+At all times, your goal is to make the conversation feel effortless, engaging, and fun. Keep the user entertained, keep them talking, and most importantly—keep them coming back for more.
+`,
     },
-    ...state.userLogs.map((log) => ({ role: "user", content: log })),
+    ...(await state.getLogs(sessionID)), // Fetch previous logs
     { role: "user", content: userInput },
   ];
 
@@ -58,33 +62,87 @@ async function llmConversation(userInput) {
     messages: messages,
   });
 
-  //add reply to conversation logs
-  state.updateLogs(userInput);
-  state.updateLogs(response.choices[0].message.content);
+  const botReply = response.choices[0].message.content;
+  await state.updateLogs(sessionID, userInput, botReply); // Store conversation in the database
 
-  return response.choices[0].message.content;
+  return botReply;
 }
 
-AiRouter.post("/conversation", async (req, res) => {
-  const userInput = req.body.userInput;
+// Create a new session
+AiRouter.post("/create-session", async (req, res) => {
+  try {
+    const { userName } = req.body;
+    if (!userName)
+      return res.status(400).json({ message: "Username is required" });
 
-  if (!userInput) {
-    return res.status(400).send({ message: "User input is required" });
+    const user = await User.findOne({ userName });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const session = await Session.create({ userID: user._id, history: [] });
+    res.status(201).json({
+      message: "Session created successfully",
+      sessionID: session._id,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error creating session", error: error.message });
   }
+});
+
+// get messages by session
+AiRouter.get("/get-messages/:sessionID", async (req, res) => {
+  try {
+    const { sessionID } = req.params;
+    if (!sessionID)
+      return res.status(400).json({ message: "sessionID is required" });
+
+    const conversationLogs = await state.getLogs(sessionID);
+    res.json({ conversationLogs });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching messages" });
+  }
+});
+
+// Handle conversation
+AiRouter.post("/conversation", async (req, res) => {
+  const { sessionID, userInput } = req.body;
+  if (!sessionID || !userInput)
+    return res
+      .status(400)
+      .send({ message: "sessionID and userInput are required" });
 
   try {
-    const botReply = await llmConversation(userInput);
-    //send entire conversation logs to client
-    res.send({ conversationLogs: state.userLogs });
+    const botReply = await llmConversation(sessionID, userInput);
+    const conversationLogs = await state.getLogs(sessionID);
+    res.send({ conversationLogs });
   } catch (error) {
     res.status(500).send({ message: "Error generating reply" });
   }
 });
 
+// End session and classify user
+AiRouter.post("/endsession", async (req, res) => {
+  const { sessionID } = req.body;
+  if (!sessionID)
+    return res.status(400).json({ message: "sessionID is required" });
+
+  try {
+    const session = await Session.findById(sessionID).populate("userID");
+    if (!session) return res.status(404).json({ message: "Session not found" });
+
+    await CommunityAgent.classifyUser(sessionID, session.userID.userName);
+    res.json({ message: "User session ended, classification triggered." });
+  } catch (error) {
+    console.error("Error processing end session:", error);
+    res.status(500).json({ message: "Error ending session" });
+  }
+});
+
+// Simple Chat Endpoint
 AiRouter.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
-
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
@@ -106,6 +164,7 @@ AiRouter.post("/chat", async (req, res) => {
   }
 });
 
+// AI Classification for Communities
 export async function cron_job_ai(demo_obj) {
   try {
     const all_boxes = await getAllBoxes(); // Returns array of box names
@@ -115,7 +174,7 @@ export async function cron_job_ai(demo_obj) {
       model: "gpt-4-turbo",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: system_propmt },
+        { role: "system", content: system_prompt },
         {
           role: "user",
           content: JSON.stringify({
@@ -141,11 +200,11 @@ export async function cron_job_ai(demo_obj) {
     }
 
     if (res.isExistingCommunity) {
-      console.log("User belongs to existing community: ", res.boxName);
+      console.log("User belongs to existing community:", res.boxName);
       await add_to_existing_box(res.boxName, demo_obj.userName);
     } else {
-      console.log("User belongs to new community: ", res.boxName);
-      await create_new_box(res.boxName, res.boxDescription, demo_obj.userName); // Only one call needed
+      console.log("User belongs to new community:", res.boxName);
+      await create_new_box(res.boxName, res.boxDescription, demo_obj.userName);
     }
   } catch (error) {
     console.error(
@@ -155,6 +214,7 @@ export async function cron_job_ai(demo_obj) {
   }
 }
 
+// Add User to an Existing Box
 export async function add_to_existing_box(boxName, userName) {
   const user = await User.findOne({ userName });
   const box = await Box.findOne({ boxName });
@@ -176,18 +236,19 @@ export async function add_to_existing_box(boxName, userName) {
   }
 }
 
+// Create a New Box and Add User
 export async function create_new_box(boxName, boxDescription, userName) {
   console.log(`Creating new box ${boxName} and adding ${userName}`);
-  const newBox = new Box({ boxName: boxName, boxDescription: boxDescription });
+  const newBox = new Box({ boxName, boxDescription });
   await newBox.save();
 
-  const usr = await User.findOne({ userName });
-  if (usr) {
-    usr.boxes.push(newBox._id);
-    await usr.save();
+  const user = await User.findOne({ userName });
+  if (user) {
+    user.boxes.push(newBox._id);
+    await user.save();
 
-    if (!newBox.boxMembers.includes(usr._id)) {
-      newBox.boxMembers.push(usr._id);
+    if (!newBox.boxMembers.includes(user._id)) {
+      newBox.boxMembers.push(user._id);
     }
   }
 

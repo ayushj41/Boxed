@@ -7,6 +7,8 @@ import cors from "cors";
 import { Router } from "express";
 import { AiRouter, cron_job_ai } from "./ai.js";
 import { Webhook } from "svix";
+import Session from "./model/session.mogo.js";
+import Conversation from "./model/conversation.mongo.js";
 
 const app = express();
 const PORT = 3000;
@@ -581,6 +583,27 @@ app.get("/random-box/:userName", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching random box", error: error.message });
+  }
+});
+
+app.post("/create-session", async (req, res) => {
+  try {
+    const { userName } = req.body;
+    if (!userName) {
+      return res.status(400).json({ message: "Username is required" });
+    }
+    const user = await User.findOne({
+      userName,
+    });
+
+    const sess = await Conversation.create({
+      userID: user._id,
+    });
+    res.status(201).json({ message: "Session created successfully", sess });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error creating session", error: error.message });
   }
 });
 
